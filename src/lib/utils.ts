@@ -240,74 +240,95 @@ export function parseInput(input: string) {
     return newGrammar;
 }
 
+/**
+ * first function main body
+ * @param inputGrammar 
+ */
 export function first(inputGrammar: Grammar) {
-
-    console.log(inputGrammar)
 
     let first: Record<string, string[]> = {};
 
-    console.log(inputGrammar.productions)
-
     for (const nonTerminalSymbol in inputGrammar.productions) {
-
-        if (!(nonTerminalSymbol in first))
-            first[nonTerminalSymbol] = [];
-
-        console.log("nonTerminalSymbol", nonTerminalSymbol, computeFirstEntry(inputGrammar, nonTerminalSymbol))
-
+        // call function on nonTerminalSymbol
+        first[nonTerminalSymbol] = computeFirstEntry(inputGrammar, nonTerminalSymbol);
     }
 
+    for (const terminalSymbol in inputGrammar.terminalSymbols) {
+        // first of terminalSymbol is terminalSymbol
+        first[inputGrammar.terminalSymbols[terminalSymbol]] = [inputGrammar.terminalSymbols[terminalSymbol]];
+    }
+
+    console.log(first)
+
 }
 
+/**
+ * computes first() function of nonTerminalSymbol
+ * @param inputGrammar 
+ * @param nonTerminalSymbol 
+ * @returns 
+ */
 function computeFirstEntry(inputGrammar: Grammar, nonTerminalSymbol: string) {
 
-    let firstArray: string[] = [];
+    let firstRoughArray: string[] = [];
 
+    // iterate over all production's bodies
     inputGrammar.productions[nonTerminalSymbol].forEach(productionBody => {
-        firstArray = [...firstArray, ...getFirstEntry(inputGrammar, productionBody)];
+        // call the first() function of head with current porductionBody
+        firstRoughArray = [...firstRoughArray, ...getFirstEntry(inputGrammar, productionBody)];
     });
 
-    return firstArray;
+    // removes duplicates
+    return removeDuplicates(firstRoughArray);
 
 }
 
+/**
+ * given an inputGrammar and a productionBody, it computes the first() function based on the productionBody
+ * @param inputGrammar 
+ * @param productionBody 
+ * @returns 
+ */
 function getFirstEntry(inputGrammar: Grammar, productionBody: string) {
 
-    console.log("productionBody", productionBody)
+    let count = 0; // used to point which character of productionBody is being considered
+    let responce: boolean | null = null; // return value of checkSymbolGivenGrammar() function
+    let offset = 0; // used to take substring from productionBody
 
-    let count = 0;
-    let responce: boolean | null = null;
-    let offset = 0;
+    // iterates until a set of symbol is recognized as terminalSymbol or nonTerminalSymbol
+    // or until the considered characters equals the productionBody
     while (responce == null && count < productionBody.length) {
 
-        offset = count + 1;
+        offset = count + 1; // increment considered characters
 
-        if (productionBody[count + 1] == '\'') { // handles non terminal symbols like A'
+        if (productionBody[count + 1] == '\'') { // handles nonTerminalSymbols followed by apostrophe (e.g. A')
             offset = offset + 1;
         }
 
         // console.log("substring", productionBody.substring(0, offset))
-        responce = checkSymbolGivenGrammar(inputGrammar, productionBody.substring(0, offset));
-        count++;
+        responce = checkSymbolGivenGrammar(inputGrammar, productionBody.substring(0, offset)); // check if the considered set of symbols is a terminalSymbol or nonTerminalSymbol
+        count++; // consider next character in productionBody
     }
 
-    if (responce) { // symbol is terminal
+    if (responce) { // considered set of symbols is a terminalSymbol
         return [productionBody.substring(0, offset)];
     }
 
-    if (!responce) { // symbol is nonTerminal
+    if (!responce) { // considered set of symbols is a nonTerminalSymbol
+        // compute first() function of this nonTerminalSymbol (e.g. T => FE, we were computing first() function of T but now we compute first() function of F)
         return computeFirstEntry(inputGrammar, productionBody.substring(0, offset));
     }
 
     // responce == null
-    // Error
+    // considered set of symbols is a neither a terminalSymbol nor nonTerminalSymbol -> this equals to Error
     console.log("Error")
     return []
 
 }
 
 /**
- * 
+ * given a grammar and a symbol in input, check whether the symbol is
+ * a terminal symbol, non terminal symbol or if it doesn't belong to the grammar at all
  * @param inputGrammar 
  * @param symbol 
  * @returns true if symbol is terminal, false if symbol is nonTerminal, null if symbol is not recognized
@@ -315,15 +336,24 @@ function getFirstEntry(inputGrammar: Grammar, productionBody: string) {
 function checkSymbolGivenGrammar(inputGrammar: Grammar, symbol: string) {
 
     if (inputGrammar.nonTerminalSymbols.includes(symbol)) {
-        console.log(symbol, "nonTerminal");
+        // console.log(symbol, "nonTerminal");
         return false;
     }
 
     if (inputGrammar.terminalSymbols.includes(symbol)) {
-        console.log(symbol, "terminal");
+        // console.log(symbol, "terminal");
         return true;
     }
 
     return null;
 
+}
+
+/**
+ * removes duplicates from array
+ * @param arr
+ * @returns 
+ */
+function removeDuplicates(inputArray: string[]) {
+    return inputArray.filter((item, index) => inputArray.indexOf(item) === index);
 }
