@@ -155,6 +155,7 @@ export default function Home() {
     });
 
     // get all terminalSymbols
+    let possibleTerminalsArray: string[] = [];
     productionsArray.forEach(production => {
 
       // get the production body
@@ -170,8 +171,17 @@ export default function Home() {
 
           console.log("count", count, currentProductionBody)
           let responce = checkSymbol(newGrammar.nonTerminalSymbols, currentProductionBody, count);
-          count = count + responce.sumToIndex;
 
+          if (responce.terminal || responce.terminalFollowedByNonTerminalSymbol || responce.terminalFollowedByNonTerminalSymbolWithAprostrophe || responce.terminalFollowedByTerminalOrApostrophe) {
+            console.log("miao", currentProductionBody[count], responce.sumToIndex)
+            if (responce.sumToIndex == 1) {
+              possibleTerminalsArray.push(currentProductionBody[count]);
+            } else {
+              possibleTerminalsArray.push(currentProductionBody.substring(count, count + responce.sumToIndex))
+            }
+          }
+
+          count = count + responce.sumToIndex;
 
         }
 
@@ -179,7 +189,7 @@ export default function Home() {
 
     });
 
-    // console.log(newGrammar)
+    console.log(possibleTerminalsArray)
   }
 
   return (
