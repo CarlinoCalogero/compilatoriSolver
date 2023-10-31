@@ -1,7 +1,7 @@
 import { CheckSymbolFunctionReturnType } from "@/types/CheckSymbolFunctionReturnType";
 import { Grammar } from "@/types/Grammar";
 
-function checkSymbol(nonTerminalSymbolsArray: string[], inputString: string, currentSymbolIndex: number) {
+function figureOutSymbol(nonTerminalSymbolsArray: string[], inputString: string, currentSymbolIndex: number) {
 
     let returnValue: CheckSymbolFunctionReturnType = {
         nonTerminalSymbol: false,
@@ -47,7 +47,7 @@ function checkSymbol(nonTerminalSymbolsArray: string[], inputString: string, cur
     // console.log("currentSymbolIndex", currentSymbolIndex, "length", inputString.length - 1)
     if (currentSymbolIndex < inputString.length - 1) {
 
-        let responce = checkSymbol(nonTerminalSymbolsArray, inputString, currentSymbolIndex + 1);
+        let responce = figureOutSymbol(nonTerminalSymbolsArray, inputString, currentSymbolIndex + 1);
 
         // nonTerminalSymbol
         if (responce.nonTerminalSymbol) {
@@ -120,7 +120,7 @@ export function parseInput(input: string) {
     let productionsArray = parsedInput.split('\n')
 
     if (productionsArray.length == 0)
-        return;
+        return newGrammar;
 
     /** get initial symbol */
     newGrammar.initialSymbol = productionsArray[0].substring(0, productionsArray[0].indexOf('='));
@@ -162,7 +162,7 @@ export function parseInput(input: string) {
             while (count < currentProductionBody.length) {
 
                 // check symbol
-                let responce = checkSymbol(newGrammar.nonTerminalSymbols, currentProductionBody, count);
+                let responce = figureOutSymbol(newGrammar.nonTerminalSymbols, currentProductionBody, count);
 
                 // if symbol is a possible terminal push it into the array
                 if (responce.terminal || responce.terminalFollowedByNonTerminalSymbol || responce.terminalFollowedByNonTerminalSymbolWithAprostrophe || responce.terminalFollowedByTerminalOrApostrophe) {
@@ -237,5 +237,93 @@ export function parseInput(input: string) {
         terminalLength++;
     } while (possibleTerminalsArray.length != 0)
 
-    console.log(newGrammar)
+    return newGrammar;
+}
+
+export function first(inputGrammar: Grammar) {
+
+    console.log(inputGrammar)
+
+    let first: Record<string, string[]> = {};
+
+    console.log(inputGrammar.productions)
+
+    for (const nonTerminalSymbol in inputGrammar.productions) {
+
+        if (!(nonTerminalSymbol in first))
+            first[nonTerminalSymbol] = [];
+
+        console.log("nonTerminalSymbol", nonTerminalSymbol, computeFirstEntry(inputGrammar, nonTerminalSymbol))
+
+    }
+
+}
+
+function computeFirstEntry(inputGrammar: Grammar, nonTerminalSymbol: string) {
+
+    let firstArray: string[] = [];
+
+    inputGrammar.productions[nonTerminalSymbol].forEach(productionBody => {
+        firstArray = [...firstArray, ...getFirstEntry(inputGrammar, productionBody)];
+    });
+
+    return firstArray;
+
+}
+
+function getFirstEntry(inputGrammar: Grammar, productionBody: string) {
+
+    console.log("productionBody", productionBody)
+
+    let count = 0;
+    let responce: boolean | null = null;
+    let offset = 0;
+    while (responce == null && count < productionBody.length) {
+
+        offset = count + 1;
+
+        if (productionBody[count + 1] == '\'') { // handles non terminal symbols like A'
+            offset = offset + 1;
+        }
+
+        // console.log("substring", productionBody.substring(0, offset))
+        responce = checkSymbolGivenGrammar(inputGrammar, productionBody.substring(0, offset));
+        count++;
+    }
+
+    if (responce) { // symbol is terminal
+        return [productionBody.substring(0, offset)];
+    }
+
+    if (!responce) { // symbol is nonTerminal
+        return computeFirstEntry(inputGrammar, productionBody.substring(0, offset));
+    }
+
+    // responce == null
+    // Error
+    console.log("Error")
+    return []
+
+}
+
+/**
+ * 
+ * @param inputGrammar 
+ * @param symbol 
+ * @returns true if symbol is terminal, false if symbol is nonTerminal, null if symbol is not recognized
+ */
+function checkSymbolGivenGrammar(inputGrammar: Grammar, symbol: string) {
+
+    if (inputGrammar.nonTerminalSymbols.includes(symbol)) {
+        console.log(symbol, "nonTerminal");
+        return false;
+    }
+
+    if (inputGrammar.terminalSymbols.includes(symbol)) {
+        console.log(symbol, "terminal");
+        return true;
+    }
+
+    return null;
+
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { parseInput } from "@/lib/utils"
+import { first, parseInput } from "@/lib/utils"
 import { useState } from "react"
 
 export default function Home() {
@@ -13,6 +13,8 @@ export default function Home() {
       <textarea onChange={e => setInput(e.target.value)} />
 
       <button onClick={e => parseInput(input)}>Print</button>
+
+      <button onClick={e => first(parseInput(input))}>first</button>
 
     </div>
   )
