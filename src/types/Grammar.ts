@@ -1,5 +1,6 @@
 export type Grammar = {
     initialSymbol: string,
     nonTerminalSymbols: string[],
-    terminalSymbols: string[]
+    terminalSymbols: string[],
+    productions: Record<string, string[]>
 }

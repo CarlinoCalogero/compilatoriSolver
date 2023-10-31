@@ -109,7 +109,8 @@ export function parseInput(input: string) {
     let newGrammar: Grammar = {
         initialSymbol: '',
         nonTerminalSymbols: [],
-        terminalSymbols: []
+        terminalSymbols: [],
+        productions: {}
     }
 
     // remove spaces from text
@@ -127,13 +128,24 @@ export function parseInput(input: string) {
     /** get all nonTerminalSymbols */
     productionsArray.forEach(production => {
 
-        newGrammar.nonTerminalSymbols.push(production.substring(0, production.indexOf('=')))
+        let productionHead = production.substring(0, production.indexOf('='));
+
+        if (!newGrammar.nonTerminalSymbols.includes(productionHead)) {
+            newGrammar.nonTerminalSymbols.push(productionHead)
+        }
+
+        if (!(productionHead in newGrammar.productions)) {
+            newGrammar.productions[productionHead] = [];
+        }
 
     });
 
     /** get all possible terminal symbols */
     let possibleTerminalsArray: string[] = [];
     productionsArray.forEach(production => {
+
+        // get the production head
+        let productionHead = production.substring(0, production.indexOf('='));
 
         // get the production body
         let productionBody = production.substring(production.indexOf(">") + 1);
@@ -143,6 +155,8 @@ export function parseInput(input: string) {
 
         // check all production's bodies
         productionBodyArray.forEach(currentProductionBody => {
+
+            newGrammar.productions[productionHead].push(currentProductionBody);
 
             let count = 0;
             while (count < currentProductionBody.length) {
