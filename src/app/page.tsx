@@ -144,17 +144,17 @@ export default function Home() {
     if (productionsArray.length == 0)
       return;
 
-    // get initial symbol
+    /** get initial symbol */
     newGrammar.initialSymbol = productionsArray[0].substring(0, productionsArray[0].indexOf('='));
 
-    // get all nonTerminalSymbols
+    /** get all nonTerminalSymbols */
     productionsArray.forEach(production => {
 
       newGrammar.nonTerminalSymbols.push(production.substring(0, production.indexOf('=')))
 
     });
 
-    // get all terminalSymbols
+    /** get all possible terminal symbols */
     let possibleTerminalsArray: string[] = [];
     productionsArray.forEach(production => {
 
@@ -164,21 +164,25 @@ export default function Home() {
       // check if there is more then one body
       let productionBodyArray = productionBody.split('|');
 
+      // check all production's bodies
       productionBodyArray.forEach(currentProductionBody => {
 
         let count = 0;
         while (count < currentProductionBody.length) {
 
+          // check symbol
           let responce = checkSymbol(newGrammar.nonTerminalSymbols, currentProductionBody, count);
 
+          // if symbol is a possible terminal push it into the array
           if (responce.terminal || responce.terminalFollowedByNonTerminalSymbol || responce.terminalFollowedByNonTerminalSymbolWithAprostrophe || responce.terminalFollowedByTerminalOrApostrophe) {
-            if (responce.sumToIndex == 1) {
+            if (responce.sumToIndex == 1) { // if symbol is a terminal
               possibleTerminalsArray.push(currentProductionBody[count]);
-            } else {
+            } else { // if symbol is a terminalFollowedByNonTerminalSymbol or a terminalFollowedByNonTerminalSymbolWithAprostrophe
               possibleTerminalsArray.push(currentProductionBody.substring(count, count + responce.sumToIndex))
             }
           }
 
+          // increment counter
           count = count + responce.sumToIndex;
 
         }
@@ -187,15 +191,17 @@ export default function Home() {
 
     });
 
-    // console.log("possibleTerminalsArray", possibleTerminalsArray.length)
-    let terminalLength = 1;
+    //** figure out what possible terminals are real terminals */
+    let terminalLength = 1; // tells us the lenght of the terminals we are examining
     do {
-      let leftOverTerminals: string[] = [];
+      let leftOverTerminals: string[] = []; // used to reduce possibleTerminalsArray by populating it with terminals with lenght different from terminalLength
+      // iterate over possible terminals
       for (let count = 0; count < possibleTerminalsArray.length; count++) {
         let currentPossibleTerminal = possibleTerminalsArray[count];
 
         //console.log("length", possibleTerminalsArray.length, "currentPossibleTerminal", currentPossibleTerminal)
 
+        // we examine the possibile terminal only if the lenght is right
         if (currentPossibleTerminal.length == terminalLength) {
 
           // possible terminals made up only by one characters are terminals 100%
@@ -203,14 +209,15 @@ export default function Home() {
             newGrammar.terminalSymbols.push(currentPossibleTerminal)
           }
 
+          // we now have to check if this terminal is made up by smaller terminals repeated or not
           if (terminalLength != 1 && !newGrammar.terminalSymbols.includes(currentPossibleTerminal)) {
 
-            let untouchedPossibleTerminal = currentPossibleTerminal;
+            let untouchedPossibleTerminal = currentPossibleTerminal; // stores the orinal possible terminal value
 
+            // iterate over our true terminals
             newGrammar.terminalSymbols.forEach(terminalSymbol => {
 
-              //console.log("terminalSymbol", terminalSymbol)
-
+              // if possible terminal is made up by true terminals we remove them from the string
               if (currentPossibleTerminal.includes(terminalSymbol)) {
                 currentPossibleTerminal = currentPossibleTerminal.replaceAll(terminalSymbol, '');
               }
@@ -218,20 +225,24 @@ export default function Home() {
             });
 
             // console.log("_currentPossibleTerminal", currentPossibleTerminal, "lenght", currentPossibleTerminal.length)
+            // empty string means that the possibile terminal was completely made up by true terminals, therefore we won't add it to the true terminals array
             if (currentPossibleTerminal != '') {
-              // console.log("untouchedPossibleTerminal", untouchedPossibleTerminal)
               newGrammar.terminalSymbols.push(untouchedPossibleTerminal)
             }
 
           }
 
         } else {
+          // get the possibile terminals that are longer than the current terminalLength
           leftOverTerminals.push(currentPossibleTerminal)
         }
 
       }
+
+      // indireclty removes this round examined terminals
       possibleTerminalsArray = [...leftOverTerminals];
       // console.log(possibleTerminalsArray, terminalLength, newGrammar)
+      // increases the considered terminalLength
       terminalLength++;
     } while (possibleTerminalsArray.length != 0)
 
@@ -244,6 +255,8 @@ export default function Home() {
       <textarea onChange={e => setInput(e.target.value)} />
 
       <button onClick={parseInput}>Print</button>
+
+
 
 
     </div>
