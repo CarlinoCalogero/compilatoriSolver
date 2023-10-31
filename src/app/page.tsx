@@ -12,7 +12,7 @@ export default function Home() {
 
       <textarea onChange={e => setInput(e.target.value)} />
 
-      <button onClick={e => parseInput(input)}>Print</button>
+      <button onClick={e => console.log(parseInput(input))}>Print</button>
 
       <button onClick={e => first(parseInput(input))}>first</button>
 

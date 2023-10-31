@@ -274,8 +274,8 @@ function computeFirstEntry(inputGrammar: Grammar, nonTerminalSymbol: string) {
 
     // iterate over all production's bodies
     inputGrammar.productions[nonTerminalSymbol].forEach(productionBody => {
-        // call the first() function of head with current porductionBody
-        firstRoughArray = [...firstRoughArray, ...getFirstEntry(inputGrammar, productionBody)];
+        // call the first() function of head with current productionBody
+        firstRoughArray = [...firstRoughArray, ...getFirstEntry(inputGrammar, nonTerminalSymbol, productionBody)];
     });
 
     // removes duplicates
@@ -289,7 +289,7 @@ function computeFirstEntry(inputGrammar: Grammar, nonTerminalSymbol: string) {
  * @param productionBody 
  * @returns 
  */
-function getFirstEntry(inputGrammar: Grammar, productionBody: string) {
+function getFirstEntry(inputGrammar: Grammar, productionHead: string, productionBody: string) {
 
     let count = 0; // used to point which character of productionBody is being considered
     let responce: boolean | null = null; // return value of checkSymbolGivenGrammar() function
@@ -312,6 +312,10 @@ function getFirstEntry(inputGrammar: Grammar, productionBody: string) {
 
     if (responce) { // considered set of symbols is a terminalSymbol
         return [productionBody.substring(0, offset)];
+    }
+
+    if (!responce && productionHead == productionBody.substring(0, offset)) { // handles if nonTerminalSymbol is equal to productionHead
+        return []
     }
 
     if (!responce) { // considered set of symbols is a nonTerminalSymbol
@@ -351,8 +355,8 @@ function checkSymbolGivenGrammar(inputGrammar: Grammar, symbol: string) {
 
 /**
  * removes duplicates from array
- * @param arr
- * @returns 
+ * @param inputArray
+ * @returns inputArray without duplicates
  */
 function removeDuplicates(inputArray: string[]) {
     return inputArray.filter((item, index) => inputArray.indexOf(item) === index);
