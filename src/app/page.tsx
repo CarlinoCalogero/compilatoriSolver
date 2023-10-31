@@ -169,11 +169,9 @@ export default function Home() {
         let count = 0;
         while (count < currentProductionBody.length) {
 
-          console.log("count", count, currentProductionBody)
           let responce = checkSymbol(newGrammar.nonTerminalSymbols, currentProductionBody, count);
 
           if (responce.terminal || responce.terminalFollowedByNonTerminalSymbol || responce.terminalFollowedByNonTerminalSymbolWithAprostrophe || responce.terminalFollowedByTerminalOrApostrophe) {
-            console.log("miao", currentProductionBody[count], responce.sumToIndex)
             if (responce.sumToIndex == 1) {
               possibleTerminalsArray.push(currentProductionBody[count]);
             } else {
@@ -189,7 +187,55 @@ export default function Home() {
 
     });
 
-    console.log(possibleTerminalsArray)
+    // console.log("possibleTerminalsArray", possibleTerminalsArray.length)
+    let terminalLength = 1;
+    do {
+      let leftOverTerminals: string[] = [];
+      for (let count = 0; count < possibleTerminalsArray.length; count++) {
+        let currentPossibleTerminal = possibleTerminalsArray[count];
+
+        //console.log("length", possibleTerminalsArray.length, "currentPossibleTerminal", currentPossibleTerminal)
+
+        if (currentPossibleTerminal.length == terminalLength) {
+
+          // possible terminals made up only by one characters are terminals 100%
+          if (terminalLength == 1 && !newGrammar.terminalSymbols.includes(currentPossibleTerminal)) {
+            newGrammar.terminalSymbols.push(currentPossibleTerminal)
+          }
+
+          if (terminalLength != 1 && !newGrammar.terminalSymbols.includes(currentPossibleTerminal)) {
+
+            let untouchedPossibleTerminal = currentPossibleTerminal;
+
+            newGrammar.terminalSymbols.forEach(terminalSymbol => {
+
+              //console.log("terminalSymbol", terminalSymbol)
+
+              if (currentPossibleTerminal.includes(terminalSymbol)) {
+                currentPossibleTerminal = currentPossibleTerminal.replaceAll(terminalSymbol, '');
+              }
+
+            });
+
+            // console.log("_currentPossibleTerminal", currentPossibleTerminal, "lenght", currentPossibleTerminal.length)
+            if (currentPossibleTerminal != '') {
+              // console.log("untouchedPossibleTerminal", untouchedPossibleTerminal)
+              newGrammar.terminalSymbols.push(untouchedPossibleTerminal)
+            }
+
+          }
+
+        } else {
+          leftOverTerminals.push(currentPossibleTerminal)
+        }
+
+      }
+      possibleTerminalsArray = [...leftOverTerminals];
+      // console.log(possibleTerminalsArray, terminalLength, newGrammar)
+      terminalLength++;
+    } while (possibleTerminalsArray.length != 0)
+
+    console.log(newGrammar)
   }
 
   return (
