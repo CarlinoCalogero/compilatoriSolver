@@ -3,4 +3,5 @@ import { CheckSymbolGivenGrammarReturnType } from "./CheckSymbolGivenGrammarRetu
 export type RecognizeSymbolReturnType = {
     checkSymbolGivenGrammarReturnType: CheckSymbolGivenGrammarReturnType,
     offset: number,
+    isError: boolean
 }

@@ -3,6 +3,13 @@ import { CheckSymbolGivenGrammarReturnType } from "@/types/CheckSymbolGivenGramm
 import { Grammar } from "@/types/Grammar";
 import { RecognizeSymbolReturnType } from "@/types/RecognizeSymbolReturnType";
 
+/**
+ * used in parseInput() function, given a symbol in input this function figures out which kind of symbol it is
+ * @param nonTerminalSymbolsArray 
+ * @param inputString 
+ * @param currentSymbolIndex 
+ * @returns 
+ */
 function figureOutSymbol(nonTerminalSymbolsArray: string[], inputString: string, currentSymbolIndex: number) {
 
     let returnValue: CheckSymbolFunctionReturnType = {
@@ -105,6 +112,11 @@ function figureOutSymbol(nonTerminalSymbolsArray: string[], inputString: string,
 
 }
 
+/**
+ * used to parse input into a grammar
+ * @param input 
+ * @returns 
+ */
 export function parseInput(input: string) {
 
     // create grammar object
@@ -376,9 +388,10 @@ function recognizeSymbol(inputGrammar: Grammar, inputString: string) {
         checkSymbolGivenGrammarReturnType: { // return value of checkSymbolGivenGrammar() function
             isTerminalSymbol: false,
             isNonTerminalSymbol: false,
-            isError: false
+            isError: false,
         },
         offset: 0, // used to take substring from inputString
+        isError: false
     };
 
     // iterates until a set of symbol is recognized as terminalSymbol or nonTerminalSymbol
@@ -394,6 +407,11 @@ function recognizeSymbol(inputGrammar: Grammar, inputString: string) {
         // console.log("substring", inputString.substring(0, offset))
         recognizeSymbolReturnType.checkSymbolGivenGrammarReturnType = checkSymbolGivenGrammar(inputGrammar, inputString.substring(0, recognizeSymbolReturnType.offset)); // check if the considered set of symbols is a terminalSymbol or nonTerminalSymbol
         count++; // consider next character in inputString
+    }
+
+    // if considered characters were not recognized and they equals the inputString, that means that there is an error
+    if (!recognizeSymbolReturnType.checkSymbolGivenGrammarReturnType.isTerminalSymbol && !recognizeSymbolReturnType.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol && count == inputString.length) {
+        recognizeSymbolReturnType.isError = true;
     }
 
     return recognizeSymbolReturnType;
