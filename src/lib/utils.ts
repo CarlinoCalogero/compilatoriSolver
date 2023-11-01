@@ -1,5 +1,7 @@
 import { CheckSymbolFunctionReturnType } from "@/types/CheckSymbolFunctionReturnType";
+import { CheckSymbolGivenGrammarReturnType } from "@/types/CheckSymbolGivenGrammarReturnType";
 import { Grammar } from "@/types/Grammar";
+import { RecognizeSymbolReturnType } from "@/types/RecognizeSymbolReturnType";
 
 function figureOutSymbol(nonTerminalSymbolsArray: string[], inputString: string, currentSymbolIndex: number) {
 
@@ -295,39 +297,22 @@ function computeFirstEntry(inputGrammar: Grammar, nonTerminalSymbol: string) {
  */
 function getFirstEntry(inputGrammar: Grammar, productionHead: string, productionBody: string) {
 
-    let count = 0; // used to point which character of productionBody is being considered
-    let responce: boolean | null = null; // return value of checkSymbolGivenGrammar() function
-    let offset = 0; // used to take substring from productionBody
+    let responce = recognizeSymbol(inputGrammar, productionBody)
 
-    // iterates until a set of symbol is recognized as terminalSymbol or nonTerminalSymbol
-    // or until the considered characters equals the productionBody
-    while (responce == null && count < productionBody.length) {
-
-        offset = count + 1; // increment considered characters
-
-        if (productionBody[count + 1] == '\'') { // handles nonTerminalSymbols followed by apostrophe (e.g. A')
-            offset = offset + 1;
-        }
-
-        // console.log("substring", productionBody.substring(0, offset))
-        responce = checkSymbolGivenGrammar(inputGrammar, productionBody.substring(0, offset)); // check if the considered set of symbols is a terminalSymbol or nonTerminalSymbol
-        count++; // consider next character in productionBody
+    if (responce.checkSymbolGivenGrammarReturnType.isTerminalSymbol) { // considered set of symbols is a terminalSymbol
+        return [productionBody.substring(0, responce.offset)];
     }
 
-    if (responce) { // considered set of symbols is a terminalSymbol
-        return [productionBody.substring(0, offset)];
-    }
-
-    if (!responce && productionHead == productionBody.substring(0, offset)) { // handles if nonTerminalSymbol is equal to productionHead
+    if (responce.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol && productionHead == productionBody.substring(0, responce.offset)) { // handles if nonTerminalSymbol is equal to productionHead
         return []
     }
 
-    if (!responce) { // considered set of symbols is a nonTerminalSymbol
+    if (responce.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) { // considered set of symbols is a nonTerminalSymbol
         // compute first() function of this nonTerminalSymbol (e.g. T => FE, we were computing first() function of T but now we compute first() function of F)
-        return computeFirstEntry(inputGrammar, productionBody.substring(0, offset));
+        return computeFirstEntry(inputGrammar, productionBody.substring(0, responce.offset));
     }
 
-    // responce == null
+    // responce.checkSymbolGivenGrammarReturnType.isError
     // considered set of symbols is a neither a terminalSymbol nor nonTerminalSymbol -> this equals to Error
     console.log("Error")
     return []
@@ -339,21 +324,31 @@ function getFirstEntry(inputGrammar: Grammar, productionHead: string, production
  * a terminal symbol, non terminal symbol or if it doesn't belong to the grammar at all
  * @param inputGrammar 
  * @param symbol 
- * @returns true if symbol is terminal, false if symbol is nonTerminal, null if symbol is not recognized
+ * @returns CheckSymbolGivenGrammarReturnType
  */
 function checkSymbolGivenGrammar(inputGrammar: Grammar, symbol: string) {
 
+    let checkSymbolGivenGrammarReturnType: CheckSymbolGivenGrammarReturnType = {
+        isTerminalSymbol: false,
+        isNonTerminalSymbol: false,
+        isError: false
+    }
+
     if (inputGrammar.nonTerminalSymbols.includes(symbol)) {
         // console.log(symbol, "nonTerminal");
-        return false;
+        checkSymbolGivenGrammarReturnType.isNonTerminalSymbol = true;
+        return checkSymbolGivenGrammarReturnType;
     }
 
     if (inputGrammar.terminalSymbols.includes(symbol)) {
         // console.log(symbol, "terminal");
-        return true;
+        checkSymbolGivenGrammarReturnType.isTerminalSymbol = true;
+        return checkSymbolGivenGrammarReturnType;
     }
 
-    return null;
+    // console.log(symbol, "Error");
+    checkSymbolGivenGrammarReturnType.isError = true;
+    return checkSymbolGivenGrammarReturnType;
 
 }
 
@@ -364,4 +359,43 @@ function checkSymbolGivenGrammar(inputGrammar: Grammar, symbol: string) {
  */
 function removeDuplicates(inputArray: string[]) {
     return inputArray.filter((item, index) => inputArray.indexOf(item) === index);
+}
+
+/**
+ * given an input string, it considers characters of this input string until they match a terminalSymbol
+ * or a non terminalSymbol. If even the whole input string does not match a terminalSymbol or a terminalSymbol, the function gives an error
+ * @param inputGrammar 
+ * @param inputString 
+ * @returns 
+ */
+function recognizeSymbol(inputGrammar: Grammar, inputString: string) {
+
+    let count = 0; // used to point which character of inputString is being considered
+    // return value of this function
+    let recognizeSymbolReturnType: RecognizeSymbolReturnType = {
+        checkSymbolGivenGrammarReturnType: { // return value of checkSymbolGivenGrammar() function
+            isTerminalSymbol: false,
+            isNonTerminalSymbol: false,
+            isError: false
+        },
+        offset: 0, // used to take substring from inputString
+    };
+
+    // iterates until a set of symbol is recognized as terminalSymbol or nonTerminalSymbol
+    // or until the considered characters equals the inputString
+    while (!recognizeSymbolReturnType.checkSymbolGivenGrammarReturnType.isTerminalSymbol && !recognizeSymbolReturnType.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol && count < inputString.length) {
+
+        recognizeSymbolReturnType.offset = count + 1; // increment considered characters
+
+        if (inputString[count + 1] == '\'') { // handles nonTerminalSymbols followed by apostrophe (e.g. A')
+            recognizeSymbolReturnType.offset = recognizeSymbolReturnType.offset + 1;
+        }
+
+        // console.log("substring", inputString.substring(0, offset))
+        recognizeSymbolReturnType.checkSymbolGivenGrammarReturnType = checkSymbolGivenGrammar(inputGrammar, inputString.substring(0, recognizeSymbolReturnType.offset)); // check if the considered set of symbols is a terminalSymbol or nonTerminalSymbol
+        count++; // consider next character in inputString
+    }
+
+    return recognizeSymbolReturnType;
+
 }
