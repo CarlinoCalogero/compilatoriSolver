@@ -423,7 +423,7 @@ function recognizeSymbol(inputGrammar: Grammar, inputString: string) {
 }
 
 /**
- * follow function main body
+ * follow function
  * @param inputGrammar 
  * @param first 
  */
@@ -432,116 +432,95 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
     let follow: Record<string, string[]> = {}; // used to store the follow function output
     let linkedFollowEntries: Record<string, string[]> = {} // used to store the linked follow entries
 
+    // initialSymbol has endOfInputSymbol in its follow
+    addArrayElementsInObjectAttribute(follow, inputGrammar.initialSymbol, [endOfInputSymbol]);
+
+    // iterate all productions
     for (const nonTerminalSymbol in inputGrammar.productions) {
-        // call function on nonTerminalSymbol
-        follow[nonTerminalSymbol] = computeFollowEntry(inputGrammar, linkedFollowEntries, nonTerminalSymbol, first);
+
+        // iterate over all production's bodies
+        inputGrammar.productions[nonTerminalSymbol].forEach(productionBody => {
+
+            // console.log("productionBody", productionBody, follow)
+
+            while (productionBody.length != 0) {
+
+                // recognize set of symbol
+                let responce = recognizeSymbol(inputGrammar, productionBody)
+                // get recognized set of symbols
+                let recognizedSetOfSymbols = productionBody.substring(0, responce.offset);
+                // remove recognizedSetOfSymbols from productionBody
+                productionBody = productionBody.replace(recognizedSetOfSymbols, "");
+
+                // console.log("recognizedSetOfSymbols", recognizedSetOfSymbols, "next", productionBody)
+
+                // if recognized set of symbols is a terminalSymbol do nothing
+                if (!responce.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
+
+                    // if the new productionBody is "" then we reached the end of the productionBody
+                    if (productionBody == '') {
+                        // we call linkFollowsEntries() function only if the recognized set of symbols is a nonTerminalSymbol
+                        if (responce.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol)
+                            linkFollowEntriesTogether(linkedFollowEntries, nonTerminalSymbol, recognizedSetOfSymbols)
+                    } else {
+
+                        // check what comes next of recognizedSetOfSymbols
+                        let symbolsNextToRecognizedSetOfSymbols = recognizeSymbol(inputGrammar, productionBody);
+
+                        // if the symbols next to recognized set of symbols is a terminal we add it to the followArray
+                        if (symbolsNextToRecognizedSetOfSymbols.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
+                            // console.log("_terminal", productionBody, "recognizedSetOfSymbols", recognizedSetOfSymbols)
+                            addArrayElementsInObjectAttribute(follow, recognizedSetOfSymbols, [productionBody]);
+                        }
+
+                        // if the symbols next to recognized set of symbols is a nonTerminal symbol, everthing in 
+                        // First() of the symbols next to recognized set of symbols goes into the
+                        // Follow() of the recognized set of symbols
+                        if (symbolsNextToRecognizedSetOfSymbols.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) {
+
+                            // console.log("_nonTerminal", productionBody, "recognizedSetOfSymbols", recognizedSetOfSymbols)
+                            addArrayElementsInObjectAttribute(follow, recognizedSetOfSymbols, first[productionBody]);
+
+                            // if the symbols next to recognized set of symbols is a nonTerminal symbol
+                            // and this nonTerminal symbol has epsilon in its First()
+                            // we call linkFollowEntriesTogether() function
+                            if (first[productionBody].includes(epsilon))
+                                linkFollowEntriesTogether(linkedFollowEntries, nonTerminalSymbol, recognizedSetOfSymbols);
+                        }
+
+                        // otherwise symbols next to recognized set of symbols were not recognized
+                        if (symbolsNextToRecognizedSetOfSymbols.isError) {
+                            console.log("Error")
+                        }
+
+                    }
+
+
+                }
+
+
+            }
+
+        });
+
     }
 
+    // iterate all terminal symbols
     for (const terminalSymbol in inputGrammar.terminalSymbols) {
         // follow of terminalSymbol does not exist
         follow[inputGrammar.terminalSymbols[terminalSymbol]] = [];
     }
 
-    console.log("follow", follow, "linkedFollowEntries", linkedFollowEntries)
+    // link productions together here
 
-}
-
-/**
- * iterates over input nonTerminalSymbol productionBody and computes the follow function output
- * for the input nonTerminalSymbol
- * @param inputGrammar 
- * @param linkedFollowEntries 
- * @param nonTerminalSymbol 
- * @param first 
- * @returns 
- */
-function computeFollowEntry(inputGrammar: Grammar, linkedFollowEntries: Record<string, string[]>, nonTerminalSymbol: string, first: Record<string, string[]>) {
-
-    let followRoughArray: string[] = [];
-
-    // iterate over all production's bodies
-    inputGrammar.productions[nonTerminalSymbol].forEach(productionBody => {
-        // call the first() function of head with current productionBody
-        followRoughArray = [...followRoughArray, ...getFollowEntry(inputGrammar, linkedFollowEntries, nonTerminalSymbol, productionBody, first)];
-    });
-
-    // initialSymbol has endOfInputSymbol in its follow
-    if (nonTerminalSymbol == inputGrammar.initialSymbol) {
-        followRoughArray.push(endOfInputSymbol);
+    // removes all epsilon from follow entries
+    for (const nonTerminalSymbol in inputGrammar.nonTerminalSymbols) {
+        let currentNonTerminalSymbol = inputGrammar.nonTerminalSymbols[nonTerminalSymbol];
+        if (currentNonTerminalSymbol in follow)
+            follow[currentNonTerminalSymbol] = removeElementFromArray(follow[currentNonTerminalSymbol], epsilon);
     }
 
-    // removes duplicates
-    return removeDuplicates(followRoughArray);
-
-}
-
-/**
- * given a productionBody in input, it parses this productionBody and computes the follow function output
- * @param inputGrammar 
- * @param linkedFollowEntries 
- * @param productionHead 
- * @param productionBody 
- * @param first 
- * @returns 
- */
-function getFollowEntry(inputGrammar: Grammar, linkedFollowEntries: Record<string, string[]>, productionHead: string, productionBody: string, first: Record<string, string[]>) {
-
-
-    let followArray: string[] = []; // used to store this productionHead follow entries
-
-    while (productionBody.length != 0) {
-
-        // recognize set of symbol
-        let responce = recognizeSymbol(inputGrammar, productionBody)
-        // get recognized set of symbols
-        let recognizedSetOfSymbols = productionBody.substring(0, responce.offset);
-        // remove recognizedSetOfSymbols from productionBody
-        productionBody = productionBody.replace(recognizedSetOfSymbols, "");
-
-        // if recognized set of symbols is a terminalSymbol do nothing
-        if (!responce.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
-
-            // if the new productionBody is "" then we call linkFollowsEntries() function
-            if (productionBody == '') {
-                linkFollowEntriesTogether(linkedFollowEntries, productionHead, recognizedSetOfSymbols)
-            } else {
-
-                // check what comes next of recognizedSetOfSymbols
-                let symbolsNextToRecognizedSetOfSymbols = recognizeSymbol(inputGrammar, productionBody);
-
-                // if the symbols next to recognized set of symbols is a terminal we add it to the followArray
-                if (symbolsNextToRecognizedSetOfSymbols.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
-                    followArray.push(recognizedSetOfSymbols)
-                }
-
-                // if the symbols next to recognized set of symbols is a nonTerminal symbol, everthing in 
-                // First() of the symbols next to recognized set of symbols goes into the
-                // Follow() of the recognized set of symbols
-                if (symbolsNextToRecognizedSetOfSymbols.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) {
-
-                    followArray = [...followArray, ...first[productionBody]]
-
-                    // if the symbols next to recognized set of symbols is a nonTerminal symbol
-                    // and this nonTerminal symbol has epsilon in its First()
-                    // we call linkFollowEntriesTogether() function
-                    if (first[productionBody].includes(epsilon))
-                        linkFollowEntriesTogether(linkedFollowEntries, productionHead, recognizedSetOfSymbols);
-                }
-
-                // otherwise symbols next to recognized set of symbols were not recognized
-                if (symbolsNextToRecognizedSetOfSymbols.isError) {
-                    console.log("Error")
-                }
-
-            }
-
-
-        }
-
-
-    }
-
-    return followArray;
+    return follow;
 
 }
 
@@ -565,5 +544,41 @@ function linkFollowEntriesTogether(linkedFollowEntries: Record<string, string[]>
     // link two follow entries together if they are not already linked
     if (!linkedFollowEntries[productionHead].includes(nonTerminalSymbol))
         linkedFollowEntries[productionHead].push(nonTerminalSymbol)
+
+}
+
+/**
+ * adds array elements to object at given attribute
+ * @param object 
+ * @param attribute 
+ * @param array 
+ */
+function addArrayElementsInObjectAttribute(object: Record<string, string[]>, attribute: string, array: string[]) {
+
+    // if there was not a record initialize it
+    if (!(attribute in object))
+        object[attribute] = []
+
+    // add elements to object attribute
+    object[attribute] = [...object[attribute], ...array];
+
+    // removes duplicates
+    object[attribute] = removeDuplicates(object[attribute]);
+
+}
+
+/**
+ * removes and element from an input array
+ * @param array 
+ * @param elementToBeRemoved 
+ * @returns 
+ */
+function removeElementFromArray(array: string[], elementToBeRemoved: string) {
+
+    let inputArrayCopy = [...array];
+
+    inputArrayCopy.splice(inputArrayCopy.indexOf(elementToBeRemoved), 1);
+
+    return inputArrayCopy;
 
 }
