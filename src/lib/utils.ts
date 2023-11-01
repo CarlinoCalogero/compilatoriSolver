@@ -524,6 +524,7 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
     }
 
     console.log("linkedFollowEntries", linkedFollowEntries);
+    computeFollowInFollowGraph(inputGrammar, linkedFollowEntries)
     return follow;
 
 }
@@ -568,5 +569,60 @@ function addArrayElementsInObjectAttribute(object: Record<string, string[]>, att
 
     // removes duplicates
     object[attribute] = removeDuplicates(object[attribute]);
+
+}
+
+function computeFollowInFollowGraph(inputGrammar: Grammar, linkedFollowEntries: Record<string, string[]>) {
+
+    let symbolsArray: string[] = []; // used to store all symbols
+    for (const symbol in linkedFollowEntries) {
+        symbolsArray = [...symbolsArray, symbol, ...linkedFollowEntries[symbol]]
+    }
+
+    // remove duplicates
+    symbolsArray = removeDuplicates(symbolsArray);
+
+    let orderedSymbol: string[] = new Array(symbolsArray.length); // used to store symbols in order of follows
+
+    /** the first symbol in the order is the one that has no inward arrows */
+    /** the last symbol in the order is the one that has no outward arrows */
+    let symbolsArrayCopyForFirstSymbol = [...symbolsArray];
+    let symbolsArrayCopyForLastSymbol = [...symbolsArray];
+    // iterate over each linkedFollow entry
+    for (const symbol in linkedFollowEntries) {
+        // we remove symbols that have inward arrows
+        // remaining symbol is first symbol
+        linkedFollowEntries[symbol].forEach(receiverSymbol => {
+            let symbolIndex = symbolsArrayCopyForFirstSymbol.indexOf(receiverSymbol)// get symbol index in array
+            if (symbolIndex != -1) // if symbolIndex == -1 the symbol was already removed from the array
+                symbolsArrayCopyForFirstSymbol.splice(symbolIndex, 1); // removes symbol from array
+        });
+
+        // we remove symbols that have outward arrows
+        // remaining symbol is last symbol
+        let symbolIndex = symbolsArrayCopyForLastSymbol.indexOf(symbol)// get symbol index in array
+        if (symbolIndex != -1) // if symbolIndex == -1 the symbol was already removed from the array
+            symbolsArrayCopyForLastSymbol.splice(symbolIndex, 1); // removes symbol from array
+    }
+
+    // if no start symbol was found there is an error
+    if (symbolsArrayCopyForFirstSymbol.length != 1)
+        console.log("Error")
+
+    // add start symbol to orderedSymbol array
+    orderedSymbol[0] = symbolsArrayCopyForFirstSymbol[0];
+    // remove start symbol from symbolsArray
+    symbolsArray.splice(symbolsArray.indexOf(symbolsArrayCopyForFirstSymbol[0]), 1);
+
+    // if no last symbol was found there is an error
+    if (symbolsArrayCopyForLastSymbol.length != 1)
+        console.log("Error")
+
+    // add last symbol to orderedSymbol array
+    orderedSymbol[orderedSymbol.length - 1] = symbolsArrayCopyForLastSymbol[0];
+    // remove last symbol from symbolsArray
+    symbolsArray.splice(symbolsArray.indexOf(symbolsArrayCopyForLastSymbol[0]), 1);
+
+    console.log([...symbolsArray], [...orderedSymbol])
 
 }
