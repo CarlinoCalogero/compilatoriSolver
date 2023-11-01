@@ -203,23 +203,27 @@ export function parseInput(input: string) {
                 // we now have to check if this terminal is made up by smaller terminals repeated or not
                 if (terminalLength != 1 && !newGrammar.terminalSymbols.includes(currentPossibleTerminal)) {
 
-                    let untouchedPossibleTerminal = currentPossibleTerminal; // stores the orinal possible terminal value
+                    let pattern = '-$%£_'
 
                     // iterate over our true terminals
                     newGrammar.terminalSymbols.forEach(terminalSymbol => {
 
-                        // if possible terminal is made up by true terminals we remove them from the string
+                        // if possible terminal is made up by true terminals we replace these tre terminals in the string with a pattern
                         if (currentPossibleTerminal.includes(terminalSymbol)) {
-                            currentPossibleTerminal = currentPossibleTerminal.replaceAll(terminalSymbol, '');
+                            currentPossibleTerminal = currentPossibleTerminal.replaceAll(terminalSymbol, pattern);
                         }
 
                     });
 
-                    // console.log("_currentPossibleTerminal", currentPossibleTerminal, "lenght", currentPossibleTerminal.length)
-                    // empty string means that the possibile terminal was completely made up by true terminals, therefore we won't add it to the true terminals array
-                    if (currentPossibleTerminal != '') {
-                        newGrammar.terminalSymbols.push(untouchedPossibleTerminal)
-                    }
+                    // we then get all substrings that were between true terminals
+                    let newPossibleTerminalsArray = currentPossibleTerminal.split(pattern)
+                    // the remaining possibile terminals are true terminals
+                    // empty strings means there was a true terminal in that position
+                    // empty string are not true terminals so we skip them
+                    newPossibleTerminalsArray.forEach(possibleTerminalSymbol => {
+                        if (possibleTerminalSymbol != '')
+                            newGrammar.terminalSymbols.push(possibleTerminalSymbol)
+                    });
 
                 }
 
