@@ -516,10 +516,14 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
     // removes all epsilon from follow entries
     for (const nonTerminalSymbol in inputGrammar.nonTerminalSymbols) {
         let currentNonTerminalSymbol = inputGrammar.nonTerminalSymbols[nonTerminalSymbol];
-        if (currentNonTerminalSymbol in follow)
-            follow[currentNonTerminalSymbol] = removeElementFromArray(follow[currentNonTerminalSymbol], epsilon);
+        if (currentNonTerminalSymbol in follow) {
+            let indexOfEpsilon = follow[currentNonTerminalSymbol].indexOf(epsilon); // get the index of epsilon in the array
+            if (indexOfEpsilon != -1) // if indexOfEpsilon == -1, it means that the array does not have epsilon
+                follow[currentNonTerminalSymbol].splice(indexOfEpsilon, 1);
+        }
     }
 
+    console.log("linkedFollowEntries", linkedFollowEntries);
     return follow;
 
 }
@@ -564,21 +568,5 @@ function addArrayElementsInObjectAttribute(object: Record<string, string[]>, att
 
     // removes duplicates
     object[attribute] = removeDuplicates(object[attribute]);
-
-}
-
-/**
- * removes and element from an input array
- * @param array 
- * @param elementToBeRemoved 
- * @returns 
- */
-function removeElementFromArray(array: string[], elementToBeRemoved: string) {
-
-    let inputArrayCopy = [...array];
-
-    inputArrayCopy.splice(inputArrayCopy.indexOf(elementToBeRemoved), 1);
-
-    return inputArrayCopy;
 
 }
