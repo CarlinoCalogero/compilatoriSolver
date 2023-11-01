@@ -623,6 +623,56 @@ function computeFollowInFollowGraph(inputGrammar: Grammar, linkedFollowEntries: 
     // remove last symbol from symbolsArray
     symbolsArray.splice(symbolsArray.indexOf(symbolsArrayCopyForLastSymbol[0]), 1);
 
-    console.log([...symbolsArray], [...orderedSymbol])
+    /** figure out other symbols order */
+    // used to store the index of the orderedSymbol array in which the next symbol 
+    // in line will be placed
+    // min value of this variable is 1
+    // max value of this variable will be orderedSymbol.length - 2
+    let nextOrderedSymbolIndex = 1;
+    // iterate over the orderedSymbol array
+    for (let count = 0; count < orderedSymbol.length; count++) {
 
+        // if we are considering the last symbol we can skip everything because
+        // last symbol does not have outward arrows
+        if (nextOrderedSymbolIndex != orderedSymbol.length - 1) {
+
+            let nextInOrderSymbol = linkedFollowEntries[orderedSymbol[count]][0]; // used to store the next symbol to be inserted inside the orderedSymbol array
+            // if array only has one element than this element is the next symbol
+            // so we iterate over the linkedFollowEntry only if the array has more than one element
+            if (linkedFollowEntries[orderedSymbol[count]].length > 1) {
+                // iterate over the linkedFollowEntry
+                for (let counter = 1; counter < linkedFollowEntries[orderedSymbol[count]].length; counter++) {
+                    
+                    let currentConsideredSymbol = linkedFollowEntries[orderedSymbol[count]][counter]; // get considered symbol
+                    
+                    // if nextInOrderSymbol equals to last symbol
+                    // currentConsideredSymbol becomes nextInOrderSymbol because
+                    // last symbol is already inside the orderedSymbol array
+                    if (nextInOrderSymbol != orderedSymbol[orderedSymbol.length - 1]) {
+                        nextInOrderSymbol = currentConsideredSymbol;
+                    } else if (isDoesSecondSymbolHasInwardArrowFromFirstSymbol(linkedFollowEntries, currentConsideredSymbol, nextInOrderSymbol)) {
+                        // check if current nextInOrderSymbol has inward arrow from currentConsideredSymbol
+                        // if nextInOrderSymbol equals to last symbol then we skip it because
+                        // last symbol does not have outward arrows
+                        // if true than currentConsideredSymbol becomes the nextInOrderSymbol
+                        nextInOrderSymbol = currentConsideredSymbol;
+                    }
+                }
+            }
+
+            // add nextInOrderSymbol to the orderedSymbol array
+            orderedSymbol[nextOrderedSymbolIndex] = nextInOrderSymbol;
+            // increment nextOrderedSymbolIndex
+            nextOrderedSymbolIndex++;
+            // remove newly added symbol from symbolsArray
+            symbolsArray.splice(symbolsArray.indexOf(nextInOrderSymbol), 1);
+        }
+
+    }
+
+    console.log("orderedSymbol", orderedSymbol)
+}
+
+function isDoesSecondSymbolHasInwardArrowFromFirstSymbol(linkedFollowEntries: Record<string, string[]>, firstSymbol: string, secondSymbol: string) {
+    return linkedFollowEntries[firstSymbol].includes(secondSymbol);
 }
