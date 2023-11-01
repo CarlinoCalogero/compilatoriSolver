@@ -1,6 +1,6 @@
 'use client'
 
-import { first, parseInput } from "@/lib/utils"
+import { first, follow, parseInput } from "@/lib/utils"
 import { useState } from "react"
 
 export default function Home() {
@@ -15,6 +15,12 @@ export default function Home() {
       <button onClick={e => console.log(parseInput(input))}>Print</button>
 
       <button onClick={e => first(parseInput(input))}>first</button>
+
+      <button onClick={e => {
+        let grammar = parseInput(input);
+        let firstReturnValue = first(grammar);
+        console.log(follow(grammar, firstReturnValue))
+      }}>follow</button>
 
     </div>
   )

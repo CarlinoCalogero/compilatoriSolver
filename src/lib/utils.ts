@@ -3,6 +3,10 @@ import { CheckSymbolGivenGrammarReturnType } from "@/types/CheckSymbolGivenGramm
 import { Grammar } from "@/types/Grammar";
 import { RecognizeSymbolReturnType } from "@/types/RecognizeSymbolReturnType";
 
+const endOfInputSymbol = "$";
+const endOfStackSymbol = endOfInputSymbol;
+const epsilon = "e";
+
 /**
  * used in parseInput() function, given a symbol in input this function figures out which kind of symbol it is
  * @param nonTerminalSymbolsArray 
@@ -276,7 +280,7 @@ export function first(inputGrammar: Grammar) {
         first[inputGrammar.terminalSymbols[terminalSymbol]] = [inputGrammar.terminalSymbols[terminalSymbol]];
     }
 
-    console.log(first)
+    return first;
 
 }
 
@@ -324,7 +328,7 @@ function getFirstEntry(inputGrammar: Grammar, productionHead: string, production
         return computeFirstEntry(inputGrammar, productionBody.substring(0, responce.offset));
     }
 
-    // responce.checkSymbolGivenGrammarReturnType.isError
+    // responce.isError
     // considered set of symbols is a neither a terminalSymbol nor nonTerminalSymbol -> this equals to Error
     console.log("Error")
     return []
@@ -388,7 +392,7 @@ function recognizeSymbol(inputGrammar: Grammar, inputString: string) {
         checkSymbolGivenGrammarReturnType: { // return value of checkSymbolGivenGrammar() function
             isTerminalSymbol: false,
             isNonTerminalSymbol: false,
-            isError: false,
+            isError: false
         },
         offset: 0, // used to take substring from inputString
         isError: false
@@ -415,5 +419,120 @@ function recognizeSymbol(inputGrammar: Grammar, inputString: string) {
     }
 
     return recognizeSymbolReturnType;
+
+}
+
+export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
+
+    let follow: Record<string, string[]> = {}; // used to store the follow function output
+    let linkedFollowEntries: Record<string, string[]> = {} // used to store the linked follow entries
+
+    for (const nonTerminalSymbol in inputGrammar.productions) {
+        // call function on nonTerminalSymbol
+        follow[nonTerminalSymbol] = computeFollowEntry(inputGrammar, linkedFollowEntries, nonTerminalSymbol, first);
+    }
+
+    for (const terminalSymbol in inputGrammar.terminalSymbols) {
+        // follow of terminalSymbol does not exist
+        follow[inputGrammar.terminalSymbols[terminalSymbol]] = [];
+    }
+
+    console.log("follow", follow, "linkedFollowEntries", linkedFollowEntries)
+
+}
+
+function computeFollowEntry(inputGrammar: Grammar, linkedFollowEntries: Record<string, string[]>, nonTerminalSymbol: string, first: Record<string, string[]>) {
+
+    let followRoughArray: string[] = [];
+
+    // iterate over all production's bodies
+    inputGrammar.productions[nonTerminalSymbol].forEach(productionBody => {
+        // call the first() function of head with current productionBody
+        followRoughArray = [...followRoughArray, ...getFollowEntry(inputGrammar, linkedFollowEntries, nonTerminalSymbol, productionBody, first)];
+    });
+
+    // initialSymbol has endOfInputSymbol in its follow
+    if (nonTerminalSymbol == inputGrammar.initialSymbol) {
+        followRoughArray.push(endOfInputSymbol);
+    }
+
+    // removes duplicates
+    return removeDuplicates(followRoughArray);
+
+}
+
+function getFollowEntry(inputGrammar: Grammar, linkedFollowEntries: Record<string, string[]>, productionHead: string, productionBody: string, first: Record<string, string[]>) {
+
+
+    let followArray: string[] = []; // used to store this productionHead follow entries
+
+    while (productionBody.length != 0) {
+
+        console.log("oldProductionBody", productionBody)
+
+        // recognize set of symbol
+        let responce = recognizeSymbol(inputGrammar, productionBody)
+        // get recognized set of symbols
+        let recognizedSetOfSymbols = productionBody.substring(0, responce.offset);
+        // remove recognizedSetOfSymbols from productionBody
+        productionBody = productionBody.replace(recognizedSetOfSymbols, "");
+
+        // if recognized set of symbols is a terminalSymbol do nothing
+        if (!responce.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
+
+            // if the new productionBody is "" then we call linkFollowsEntries() function
+            if (productionBody == '')
+                linkFollowEntriesTogether(linkedFollowEntries, productionHead, recognizedSetOfSymbols)
+
+            // check what comes next of recognizedSetOfSymbols
+            let symbolsNextToRecognizedSetOfSymbols = recognizeSymbol(inputGrammar, productionBody);
+
+            // if the symbols next to recognized set of symbols is a terminal we add it to the followArray
+            if (symbolsNextToRecognizedSetOfSymbols.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
+                followArray.push(recognizedSetOfSymbols)
+            }
+
+            // if the symbols next to recognized set of symbols is a nonTerminal symbol, everthing in 
+            // First() of the symbols next to recognized set of symbols goes into the
+            // Follow() of the recognized set of symbols
+            if (symbolsNextToRecognizedSetOfSymbols.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) {
+                console.log("bau", recognizedSetOfSymbols, productionBody)
+                followArray = [...followArray, ...first[productionBody]]
+
+                // if the symbols next to recognized set of symbols is a nonTerminal symbol
+                // and this nonTerminal symbol has epsilon in its First()
+                // we call linkFollowEntriesTogether() function
+                if (first[productionBody].includes(epsilon))
+                    linkFollowEntriesTogether(linkedFollowEntries, productionHead, recognizedSetOfSymbols);
+            }
+
+            // otherwise symbols next to recognized set of symbols were not recognized
+            if (symbolsNextToRecognizedSetOfSymbols.isError) {
+                console.log("Error")
+            }
+
+            console.log("newProductionBody", productionBody, "symbolsNextToRecognizedSetOfSymbols", symbolsNextToRecognizedSetOfSymbols, "followArray", followArray)
+
+        }
+
+    }
+
+    return []; // delete this
+
+}
+
+function linkFollowEntriesTogether(linkedFollowEntries: Record<string, string[]>, productionHead: string, nonTerminalSymbol: string) {
+
+    // do not link if productionHead equals the nonTerminalSymbol
+    if (productionHead == nonTerminalSymbol)
+        return;
+
+    // if there was not a record initialize it
+    if (!(productionHead in linkedFollowEntries))
+        linkedFollowEntries[productionHead] = []
+
+    // link two follow entries together if they are not already linked
+    if (!linkedFollowEntries[productionHead].includes(nonTerminalSymbol))
+        linkedFollowEntries[productionHead].push(nonTerminalSymbol)
 
 }
