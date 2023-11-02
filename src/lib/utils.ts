@@ -276,8 +276,11 @@ export function first(inputGrammar: Grammar) {
     }
 
     for (const terminalSymbol in inputGrammar.terminalSymbols) {
-        // first of terminalSymbol is terminalSymbol
-        first[inputGrammar.terminalSymbols[terminalSymbol]] = [inputGrammar.terminalSymbols[terminalSymbol]];
+        let currentTerminal = inputGrammar.terminalSymbols[terminalSymbol]; // get currentTerminal symbol
+        // if currentTerminal symbol is epsilon skip it
+        if (currentTerminal != epsilon)
+            // first of terminalSymbol is terminalSymbol
+            first[currentTerminal] = [currentTerminal];
     }
 
     return first;
@@ -505,24 +508,7 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
 
     }
 
-    // iterate all terminal symbols
-    for (const terminalSymbol in inputGrammar.terminalSymbols) {
-        // follow of terminalSymbol does not exist
-        follow[inputGrammar.terminalSymbols[terminalSymbol]] = [];
-    }
-
-    // link productions together here
-
-    // removes all epsilon from follow entries
-    for (const nonTerminalSymbol in inputGrammar.nonTerminalSymbols) {
-        let currentNonTerminalSymbol = inputGrammar.nonTerminalSymbols[nonTerminalSymbol];
-        if (currentNonTerminalSymbol in follow) {
-            let indexOfEpsilon = follow[currentNonTerminalSymbol].indexOf(epsilon); // get the index of epsilon in the array
-            if (indexOfEpsilon != -1) // if indexOfEpsilon == -1, it means that the array does not have epsilon
-                follow[currentNonTerminalSymbol].splice(indexOfEpsilon, 1);
-        }
-    }
-
+    /** put Follow() inside Follow() */
     // get followGraphOrder
     let followGraphOrder = computeFollowInFollowGraph(linkedFollowEntries);
     // the first followEntry is taken from the startSymbol
@@ -537,6 +523,23 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
         addArrayElementsInObjectAttribute(follow, receiverSymbol, follow[senderSymbol]);
         // update senderSymbol
         senderSymbol = receiverSymbol;
+    }
+
+    // iterate all terminal symbols
+    for (const terminalSymbol in inputGrammar.terminalSymbols) {
+        let currentTerminal = inputGrammar.terminalSymbols[terminalSymbol]; // store currentTerminal symbol
+        // if terminal is epsilon ignore it
+        if (currentTerminal != epsilon)
+            // follow of terminalSymbol does not exist
+            follow[currentTerminal] = [];
+    }
+
+    // removes all epsilon from follow entries
+    for (const nonTerminalSymbol in inputGrammar.nonTerminalSymbols) {
+        let currentNonTerminalSymbol = inputGrammar.nonTerminalSymbols[nonTerminalSymbol];
+        let indexOfEpsilon = follow[currentNonTerminalSymbol].indexOf(epsilon); // get the index of epsilon in the array
+        if (indexOfEpsilon != -1) // if indexOfEpsilon == -1, it means that the array does not have epsilon
+            follow[currentNonTerminalSymbol].splice(indexOfEpsilon, 1);
     }
 
     return follow;
