@@ -718,6 +718,46 @@ export function test() {
                 "T'": ['+', '$', ')'],
                 id: []
             }
+        },
+        {
+            input: "R=>TR\'\nR\'=>pTR\'\nT=>FT\'\nT\'=>FT\'\nF=>aF\'\nF=>bF\'\nF\'=>kF\'",
+            grammar: {
+                initialSymbol: "R",
+                nonTerminalSymbols: ['R', "R'", 'T', "T'", 'F', "F'"],
+                terminalSymbols: ['p', 'a', 'b', 'k'],
+                productions: {
+                    F: ["aF'", "bF'"],
+                    "F'": ["kF'"],
+                    R: ["TR'"],
+                    "R'": ["pTR'"],
+                    T: ["FT'"],
+                    "T'": ["FT'"]
+                }
+            },
+            first: {
+                F: ['a', 'b'],
+                "F'": ['k'],
+                R: ['a', 'b'],
+                "R'": ['p'],
+                T: ['a', 'b'],
+                "T'": ['a', 'b'],
+                a: ['a'],
+                b: ['b'],
+                k: ['k'],
+                p: ['p']
+            },
+            follow: {
+                F: ['a', 'b'],
+                "F'": ['a', 'b'],
+                R: ['$'],
+                "R'": ['$'],
+                T: ['p'],
+                "T'": ['p'],
+                a: [],
+                b: [],
+                k: [],
+                p: []
+            }
         }
     ]
 
