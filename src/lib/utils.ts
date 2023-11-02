@@ -75,7 +75,7 @@ function figureOutSymbol(nonTerminalSymbolsArray: string[], inputString: string,
         if (responce.nonTerminalSymbolFollowedByApostrof) {
             // console.log("_nonTerminalSymbolFollowedByApostrof", inputString.substring(currentSymbolIndex, currentSymbolIndex + responce.sumToIndex + 1))
             returnValue.terminalFollowedByNonTerminalSymbolWithAprostrophe = true;
-            returnValue.sumToIndex = 2;
+            returnValue.sumToIndex = 3;
             // console.log("returnValue.sumToIndex", returnValue.sumToIndex)
             return returnValue
         }
@@ -219,16 +219,36 @@ export function parseInput(input: string) {
                 }
 
                 // we now have to check if this terminal is made up by smaller terminals repeated or not
+                // or by nonTerminals repeated or not
                 if (terminalLength != 1 && !newGrammar.terminalSymbols.includes(currentPossibleTerminal)) {
 
                     let pattern = '-$%£_'
 
+                    /** find out if this terminal is made up by smaller terminals repeated or not */
                     // iterate over our true terminals
                     newGrammar.terminalSymbols.forEach(terminalSymbol => {
 
                         // if possible terminal is made up by true terminals we replace these tre terminals in the string with a pattern
                         if (currentPossibleTerminal.includes(terminalSymbol)) {
                             currentPossibleTerminal = currentPossibleTerminal.replaceAll(terminalSymbol, pattern);
+                        }
+
+                    });
+
+                    /** find out if this terminal is made up by smaller nonTerminals repeated or not */
+                    // iterate over nonTerminals
+                    newGrammar.nonTerminalSymbols.forEach(nonTerminalSymbol => {
+
+                        // if possible terminal is made up by nonTerminals we replace these nonTerminals in the string with a pattern
+                        // first check if nonTerminal followed by apostrophe (e.g A') is included
+                        if (currentPossibleTerminal.includes(`${nonTerminalSymbol}\'`)) {
+                            currentPossibleTerminal = currentPossibleTerminal.replaceAll(`${nonTerminalSymbol}\'`, pattern);
+                        }
+
+                        // if nonTerminal followed by apostrophe (e.g A') is not included
+                        // then proceed normally
+                        if (currentPossibleTerminal.includes(nonTerminalSymbol)) {
+                            currentPossibleTerminal = currentPossibleTerminal.replaceAll(nonTerminalSymbol, pattern);
                         }
 
                     });
