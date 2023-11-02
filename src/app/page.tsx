@@ -18,12 +18,14 @@ export default function Home() {
     console.log(firstFunctionResult)
     let followFunctionResult = follow(grammar, firstFunctionResult);
     console.log(followFunctionResult)
-    parsingTable(grammar, firstFunctionResult, followFunctionResult)
+    let parsingTableResult = parsingTable(grammar, firstFunctionResult, followFunctionResult)
+    console.log("parsingTableResult", parsingTableResult)
 
     setComputed({
       grammar: grammar,
       first: firstFunctionResult,
-      follow: followFunctionResult
+      follow: followFunctionResult,
+      parsingTable: parsingTableResult
     });
   }
 
@@ -89,6 +91,45 @@ export default function Home() {
                       Object.keys(computed.follow).map((symbol, i) => <td key={"td_tbody_follow_" + i}>{computed.follow != null && (computed.follow[symbol].length == 0 ? '-' : computed.follow[symbol].toString())}</td>)
                     }
                   </tr>
+                </tbody>
+
+              </table>
+
+            </div>
+          }
+
+          {
+            computed.parsingTable != null &&
+            <div>
+              <span>Parsing Table</span>
+
+              <table>
+
+                <thead>
+                  <tr>
+                    <td rowSpan={2}>Non Terminale</td>
+                    <td align="center" colSpan={Object.keys(computed.parsingTable[Object.keys(computed.parsingTable)[0]]).length}>Terminale</td>
+                  </tr>
+                  <tr>
+                    {
+                      Object.keys(computed.parsingTable[Object.keys(computed.parsingTable)[0]]).map((column, i) => <td key={"td_thead_parsingTable_" + i}>{column}</td>)
+                    }
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {
+                    Object.keys(computed.parsingTable).map((nonTerminalSymbol, i) =>
+                      <tr key={"tr_tbody_parsingTable_" + i}>
+                        <td>{nonTerminalSymbol}</td>
+                        {
+                          computed.parsingTable != null &&
+                          Object.keys(computed.parsingTable[nonTerminalSymbol]).map((row, j) =>
+                            <td key={"td_tbody_parsingTable_" + i + "_" + j}>{computed.parsingTable != null && computed.parsingTable[nonTerminalSymbol][row].toString()}</td>)
+                        }
+                      </tr>
+                    )
+                  }
                 </tbody>
 
               </table>

@@ -964,74 +964,87 @@ export function parsingTable(inputGrammar: Grammar, first: Record<string, string
     /** populate parsingTable */
     inputGrammar.nonTerminalSymbols.forEach(nonTerminalSymbol => {
 
+        // nonTerminalSymbols are parsingTable's rows
         parsingTable[nonTerminalSymbol] = {};
 
+        // terminalSymbols are parsingTable's columns
         inputGrammar.terminalSymbols.forEach(terminalSymbol => {
             if (terminalSymbol != epsilon)
                 parsingTable[nonTerminalSymbol][terminalSymbol] = [errorString];
         });
 
+        // other than terminalSymbols there is the special column of $
         parsingTable[nonTerminalSymbol][endOfInputSymbol] = [errorString];
     });
 
     // console.log("parsingTable", JSON.parse(JSON.stringify(parsingTable)))
 
+    // iterate over nonTerminalSymbol
     inputGrammar.nonTerminalSymbols.forEach(nonTerminalSymbol => {
 
+        // iterate over productionBodies
         inputGrammar.productions[nonTerminalSymbol].forEach(productionBody => {
 
             // console.log("productionBody", productionBody)
 
+            // prepare tableEntry as format A=>aB for example
             let tableEntry = `${nonTerminalSymbol}=>${productionBody}`
 
+            // check first recognized symbol of productionBody
             let responce = recognizeSymbol(inputGrammar, productionBody);
+            // get first recognized symbol of productionBody
             let recognizedSymbol = productionBody.substring(0, responce.offset)
 
-            if (recognizedSymbol != epsilon) {
+            if (recognizedSymbol != epsilon) { // if recognized symbol is not an epsilon we don't have to worry about the follow() part of the algorithm
 
                 // console.log("recognizedSymbol", recognizedSymbol)
 
+                // recognized symbol is a terminalSymbol
                 if (responce.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
                     // console.log("recognizedSymbol is terminalSymbol")
-                    addEntryToParsingTable(parsingTable, nonTerminalSymbol, recognizedSymbol, tableEntry);
+                    addEntryToParsingTable(parsingTable, nonTerminalSymbol, recognizedSymbol, tableEntry); // add tableEntry in the cell
                 }
 
+                // recognized symbol is a nonTerminalSymbol
                 if (responce.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) {
 
                     // console.log("recognizedSymbol is nonTerminalSymbol")
 
+                    // iterate over recognizedSymbol first
                     first[recognizedSymbol].forEach(terminalSymbolInsideFirstFunction => {
 
                         // console.log("terminalSymbolInsideFirstFunction", terminalSymbolInsideFirstFunction)
 
-                        if (terminalSymbolInsideFirstFunction != epsilon) {
+                        if (terminalSymbolInsideFirstFunction != epsilon) { // if recognized symbol is not an epsilon we don't have to worry about the follow() part of the algorithm
                             // console.log("terminalSymbolInsideFirstFunction isn't epsilon")
                             addEntryToParsingTable(parsingTable, nonTerminalSymbol, terminalSymbolInsideFirstFunction, tableEntry);
-                        } else {
+                        } else { // recognized symbol is epsilon so we have to worry about the follow() part of the algorithm
                             parsingTableWhenEncounteringEpsilon(parsingTable, follow, nonTerminalSymbol, tableEntry);
                         }
 
                     });
                 }
 
-            } else {
+            } else { // recognized symbol is epsilon so we have to worry about the follow() part of the algorithm
                 // console.log("productionBody is epsilon")
                 parsingTableWhenEncounteringEpsilon(parsingTable, follow, nonTerminalSymbol, tableEntry);
             }
         });
     });
 
-    console.log("_parsingTable", JSON.parse(JSON.stringify(parsingTable)))
+    return parsingTable;
 
 }
 
 function parsingTableWhenEncounteringEpsilon(parsingTable: Record<string, Record<string, string[]>>, follow: Record<string, string[]>, nonTerminalSymbol: string, tableEntry: string) {
+    
+    // iterate over nonTerminalSymbol follow
     follow[nonTerminalSymbol].forEach(terminalSymbolInsideFollowFunction => {
         // console.log("terminalSymbolInsideFollowFunction", terminalSymbolInsideFollowFunction)
-        if (terminalSymbolInsideFollowFunction != endOfInputSymbol) {
+        if (terminalSymbolInsideFollowFunction != endOfInputSymbol) { // if terminalSymbolInsideFollowFunction is not $ simply add the tableEntry
             // console.log("terminalSymbolInsideFollowFunction isn't $")
             addEntryToParsingTable(parsingTable, nonTerminalSymbol, terminalSymbolInsideFollowFunction, tableEntry);
-        } else {
+        } else { // if terminalSymbolInsideFollowFunction is $ add the tableEntry to the corresponding column with $
             // console.log("terminalSymbolInsideFollowFunction is $")
             addEntryToParsingTable(parsingTable, nonTerminalSymbol, endOfInputSymbol, tableEntry);
         }
