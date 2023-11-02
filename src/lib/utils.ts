@@ -954,3 +954,99 @@ function putEntriesInsideEntries(inputGrammar: Grammar, linkedEntries: Record<st
     } while (isWereElementsAddedToAFollow)
 
 }
+
+export function parsingTable(inputGrammar: Grammar, first: Record<string, string[]>, follow: Record<string, string[]>) {
+
+    let parsingTable: Record<string, Record<string, string[]>> = {}
+
+    let errorString = "Error";
+
+    /** populate parsingTable */
+    inputGrammar.nonTerminalSymbols.forEach(nonTerminalSymbol => {
+
+        parsingTable[nonTerminalSymbol] = {};
+
+        inputGrammar.terminalSymbols.forEach(terminalSymbol => {
+            if (terminalSymbol != epsilon)
+                parsingTable[nonTerminalSymbol][terminalSymbol] = [errorString];
+        });
+
+        parsingTable[nonTerminalSymbol][endOfInputSymbol] = [errorString];
+    });
+
+    // console.log("parsingTable", JSON.parse(JSON.stringify(parsingTable)))
+
+    inputGrammar.nonTerminalSymbols.forEach(nonTerminalSymbol => {
+
+        inputGrammar.productions[nonTerminalSymbol].forEach(productionBody => {
+
+            // console.log("productionBody", productionBody)
+
+            let tableEntry = `${nonTerminalSymbol}=>${productionBody}`
+
+            let responce = recognizeSymbol(inputGrammar, productionBody);
+            let recognizedSymbol = productionBody.substring(0, responce.offset)
+
+            if (recognizedSymbol != epsilon) {
+
+                // console.log("recognizedSymbol", recognizedSymbol)
+
+                if (responce.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
+                    // console.log("recognizedSymbol is terminalSymbol")
+                    addEntryToParsingTable(parsingTable, nonTerminalSymbol, recognizedSymbol, tableEntry);
+                }
+
+                if (responce.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) {
+
+                    // console.log("recognizedSymbol is nonTerminalSymbol")
+
+                    first[recognizedSymbol].forEach(terminalSymbolInsideFirstFunction => {
+
+                        // console.log("terminalSymbolInsideFirstFunction", terminalSymbolInsideFirstFunction)
+
+                        if (terminalSymbolInsideFirstFunction != epsilon) {
+                            // console.log("terminalSymbolInsideFirstFunction isn't epsilon")
+                            addEntryToParsingTable(parsingTable, nonTerminalSymbol, terminalSymbolInsideFirstFunction, tableEntry);
+                        } else {
+                            parsingTableWhenEncounteringEpsilon(parsingTable, follow, nonTerminalSymbol, tableEntry);
+                        }
+
+                    });
+                }
+
+            } else {
+                // console.log("productionBody is epsilon")
+                parsingTableWhenEncounteringEpsilon(parsingTable, follow, nonTerminalSymbol, tableEntry);
+            }
+        });
+    });
+
+    console.log("_parsingTable", JSON.parse(JSON.stringify(parsingTable)))
+
+}
+
+function parsingTableWhenEncounteringEpsilon(parsingTable: Record<string, Record<string, string[]>>, follow: Record<string, string[]>, nonTerminalSymbol: string, tableEntry: string) {
+    follow[nonTerminalSymbol].forEach(terminalSymbolInsideFollowFunction => {
+        // console.log("terminalSymbolInsideFollowFunction", terminalSymbolInsideFollowFunction)
+        if (terminalSymbolInsideFollowFunction != endOfInputSymbol) {
+            // console.log("terminalSymbolInsideFollowFunction isn't $")
+            addEntryToParsingTable(parsingTable, nonTerminalSymbol, terminalSymbolInsideFollowFunction, tableEntry);
+        } else {
+            // console.log("terminalSymbolInsideFollowFunction is $")
+            addEntryToParsingTable(parsingTable, nonTerminalSymbol, endOfInputSymbol, tableEntry);
+        }
+    });
+}
+
+function addEntryToParsingTable(parsingTable: Record<string, Record<string, string[]>>, row: string, column: string, tableEntry: string) {
+
+    let errorString = "Error";
+
+    // remove "Error"
+    let errorIndex = parsingTable[row][column].indexOf(errorString);
+    if (errorIndex != -1)
+        parsingTable[row][column].splice(errorIndex, 1)
+
+    // add entry
+    parsingTable[row][column].push(tableEntry);
+}

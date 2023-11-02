@@ -1,6 +1,6 @@
 'use client'
 
-import { parseInput, first, follow, test } from "@/lib/utils"
+import { parseInput, first, follow, test, parsingTable } from "@/lib/utils"
 import { useState } from "react"
 import styles from './page.module.css'
 import { Computed } from "@/types/Computed"
@@ -18,6 +18,7 @@ export default function Home() {
     console.log(firstFunctionResult)
     let followFunctionResult = follow(grammar, firstFunctionResult);
     console.log(followFunctionResult)
+    parsingTable(grammar, firstFunctionResult, followFunctionResult)
 
     setComputed({
       grammar: grammar,
