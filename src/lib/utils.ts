@@ -291,10 +291,12 @@ export function parseInput(input: string) {
 export function first(inputGrammar: Grammar) {
 
     let first: Record<string, string[]> = {};
+    let linkedFirstEntries: Record<string, string[]> = {} // used to store the linked first entries
+    let terminalsToBeAddedToNonTerminalsFirst: Record<string, string[]> = {} // used to store terminalSymbols that are to be added to nonTerminalSymbols first()
 
     for (const nonTerminalSymbol in inputGrammar.productions) {
         // call function on nonTerminalSymbol
-        first[nonTerminalSymbol] = computeFirstEntry(inputGrammar, nonTerminalSymbol);
+        first[nonTerminalSymbol] = computeFirstEntry(inputGrammar, linkedFirstEntries, terminalsToBeAddedToNonTerminalsFirst, nonTerminalSymbol);
     }
 
     for (const terminalSymbol in inputGrammar.terminalSymbols) {
@@ -304,6 +306,16 @@ export function first(inputGrammar: Grammar) {
             // first of terminalSymbol is terminalSymbol
             first[currentTerminal] = [currentTerminal];
     }
+
+    /** add terminals to nonTerminals' First() */
+    for (const nonTerminal in terminalsToBeAddedToNonTerminalsFirst) {
+        addArrayElementsInObjectAttribute(first, nonTerminal, terminalsToBeAddedToNonTerminalsFirst[nonTerminal])
+    }
+
+    /** put First() inside First() */
+    putEntriesInsideEntries(inputGrammar, linkedFirstEntries, first);
+
+    // console.log("linkedFirstEntries", linkedFirstEntries)
 
     return first;
 
@@ -315,14 +327,46 @@ export function first(inputGrammar: Grammar) {
  * @param nonTerminalSymbol 
  * @returns 
  */
-function computeFirstEntry(inputGrammar: Grammar, nonTerminalSymbol: string) {
+function computeFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<string, string[]>, terminalsToBeAddedToNonTerminalsFirst: Record<string, string[]>, nonTerminalSymbol: string) {
 
     let firstRoughArray: string[] = [];
 
     // iterate over all production's bodies
     inputGrammar.productions[nonTerminalSymbol].forEach(productionBody => {
+        //check first symbol
+        let responce = recognizeSymbol(inputGrammar, productionBody);
+        // console.log("productionBody", productionBody)
         // call the first() function of head with current productionBody
-        firstRoughArray = [...firstRoughArray, ...getFirstEntry(inputGrammar, nonTerminalSymbol, productionBody)];
+        firstRoughArray = [...firstRoughArray, ...getFirstEntry(inputGrammar, linkedFirstEntries, terminalsToBeAddedToNonTerminalsFirst, nonTerminalSymbol, productionBody, responce)];
+
+        do {
+            // get remaining production body
+            productionBody = productionBody.substring(responce.offset, productionBody.length);
+            /** now check if in productionBody there are terminalSymbols before nonTerminalSymbols */
+            if (productionBody.length != 0) { // if productionBody equals '' do nothing
+                // console.log("_productionBody", productionBody)
+                // recognize next symbol
+                responce = recognizeSymbol(inputGrammar, productionBody);
+                // if recognized symbol is a terminal check if next symbol is a nonTerminalSymbol
+                if (responce.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
+                    let terminalSymbol = productionBody.substring(0, responce.offset); // save terminalSymbol
+                    // get remaining production body
+                    productionBody = productionBody.substring(responce.offset, productionBody.length);
+                    if (productionBody.length != 0) { // if new productionBody equals '' do nothing
+                        // console.log("terminalSymbol", terminalSymbol, "productionBody", productionBody)
+                        // recognize symbol
+                        let responceForNextSymbol = recognizeSymbol(inputGrammar, productionBody);
+                        // if next symbol is nonTerminal we add 
+                        // the previously found terminalSymbol to this newly found next nonTerminalSymbol's first()
+                        if (responceForNextSymbol.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) {
+                            let nonTerminalSymbol = productionBody.substring(0, responce.offset); // get nonTerminalSymbol
+                            addArrayElementsInObjectAttribute(terminalsToBeAddedToNonTerminalsFirst, nonTerminalSymbol, [terminalSymbol])
+                        }
+                    }
+                }
+            }
+        } while (productionBody.length != 0)
+
     });
 
     // removes duplicates
@@ -336,9 +380,7 @@ function computeFirstEntry(inputGrammar: Grammar, nonTerminalSymbol: string) {
  * @param productionBody 
  * @returns 
  */
-function getFirstEntry(inputGrammar: Grammar, productionHead: string, productionBody: string) {
-
-    let responce = recognizeSymbol(inputGrammar, productionBody)
+function getFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<string, string[]>, terminalsToBeAddedToNonTerminalsFirst: Record<string, string[]>, productionHead: string, productionBody: string, responce: RecognizeSymbolReturnType) {
 
     if (responce.checkSymbolGivenGrammarReturnType.isTerminalSymbol) { // considered set of symbols is a terminalSymbol
         return [productionBody.substring(0, responce.offset)];
@@ -350,7 +392,8 @@ function getFirstEntry(inputGrammar: Grammar, productionHead: string, production
 
     if (responce.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) { // considered set of symbols is a nonTerminalSymbol
         // compute first() function of this nonTerminalSymbol (e.g. T => FE, we were computing first() function of T but now we compute first() function of F)
-        return computeFirstEntry(inputGrammar, productionBody.substring(0, responce.offset));
+        linkEntriesTogether(linkedFirstEntries, productionBody.substring(0, responce.offset), productionHead)
+        return computeFirstEntry(inputGrammar, linkedFirstEntries, terminalsToBeAddedToNonTerminalsFirst, productionBody.substring(0, responce.offset));
     }
 
     // responce.isError
@@ -489,7 +532,7 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
                     if (productionBody == '') {
                         // we call linkFollowsEntries() function only if the recognized set of symbols is a nonTerminalSymbol
                         if (responce.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol)
-                            linkFollowEntriesTogether(linkedFollowEntries, nonTerminalSymbol, recognizedSetOfSymbols)
+                            linkEntriesTogether(linkedFollowEntries, nonTerminalSymbol, recognizedSetOfSymbols)
                     } else {
 
                         // check what comes next of recognizedSetOfSymbols
@@ -518,7 +561,7 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
                             // and this nonTerminal symbol has epsilon in its First()
                             // we call linkFollowEntriesTogether() function
                             if (first[firstSetOfCharactersNextToRecognizedSetOfSymbols].includes(epsilon))
-                                linkFollowEntriesTogether(linkedFollowEntries, nonTerminalSymbol, recognizedSetOfSymbols);
+                                linkEntriesTogether(linkedFollowEntries, nonTerminalSymbol, recognizedSetOfSymbols);
                         }
 
                         // otherwise symbols next to recognized set of symbols were not recognized
@@ -541,49 +584,7 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
     // console.log("linkedFollowEntries", JSON.parse(JSON.stringify(linkedFollowEntries)), "\nfollow", JSON.parse(JSON.stringify(follow)))
 
     /** put Follow() inside Follow() */
-    let isWereElementsAddedToAFollow: boolean = true;
-    // iterate until no more elements are added inside a follow
-    do {
-
-        // get number of follow entries elements before putting follow inside follow
-        let numberOfElementsBeforeIteration = getNumberOfElementsOfFollowFunction(inputGrammar, follow);
-
-        // put follow inside follow
-        for (const senderSymbol in linkedFollowEntries) {
-
-            linkedFollowEntries[senderSymbol].forEach(receiverSymbol => {
-                addArrayElementsInObjectAttribute(follow, receiverSymbol, follow[senderSymbol]);
-            });
-
-        }
-
-        // get number of follow entries elements after putting follow inside follow
-        let numberOfElementsAfterIteration = getNumberOfElementsOfFollowFunction(inputGrammar, follow);
-
-        // console.log("numberOfElementsBeforeIteration", JSON.parse(JSON.stringify(numberOfElementsBeforeIteration)), "\nnumberOfElementsAfterIteration", JSON.parse(JSON.stringify(numberOfElementsAfterIteration)))
-
-        // if isWereElementsAddedToAFollowInThisIteration is true elements were added to a nonTerminalSymbol's follow
-        // if isWereElementsAddedToAFollowInThisIteration is false no elements were added to a nonTerminalSymbol's follow so we can exit the do{}while
-        let isWereElementsAddedToAFollowInThisIteration = false;
-        let count = 0; // used to point which nonTerminalSymbol fo the grammar we are considering
-
-        // check if elements were put inside a follow during this iteration 
-        while (!isWereElementsAddedToAFollowInThisIteration && count < inputGrammar.nonTerminalSymbols.length) {
-            let currentNonTerminalSymbol = inputGrammar.nonTerminalSymbols[count]; // store current nonTerminalSymbol
-            // console.log("currentNonTerminalSymbol", currentNonTerminalSymbol, "before", numberOfElementsBeforeIteration[currentNonTerminalSymbol], "after", numberOfElementsAfterIteration[currentNonTerminalSymbol])
-            // if true this means that elements were put inside a nonTerminalSymbol's follow
-            // so we cannot stop the do{}while but we have to do another iteration
-            // if false this means that no elements were put inside a nonTerminalSymbol's follow
-            // so we can stop the do{}while, namely, putting follow() inside follow()
-            if (numberOfElementsBeforeIteration[currentNonTerminalSymbol] != numberOfElementsAfterIteration[currentNonTerminalSymbol])
-                isWereElementsAddedToAFollowInThisIteration = true;
-            count++;
-        }
-
-        // update the do{}while condition
-        isWereElementsAddedToAFollow = isWereElementsAddedToAFollowInThisIteration;
-
-    } while (isWereElementsAddedToAFollow)
+    putEntriesInsideEntries(inputGrammar, linkedFollowEntries, follow);
 
 
     // iterate all terminal symbols
@@ -608,25 +609,25 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
 }
 
 /**
- * links together two followEnties
- * @param linkedFollowEntries 
- * @param productionHead 
- * @param nonTerminalSymbol 
+ * links together two entries
+ * @param linkedEntries 
+ * @param sender 
+ * @param receiver 
  * @returns 
  */
-function linkFollowEntriesTogether(linkedFollowEntries: Record<string, string[]>, productionHead: string, nonTerminalSymbol: string) {
+function linkEntriesTogether(linkedEntries: Record<string, string[]>, sender: string, receiver: string) {
 
-    // do not link if productionHead equals the nonTerminalSymbol
-    if (productionHead == nonTerminalSymbol)
+    // do not link if sender equals the receiver
+    if (sender == receiver)
         return;
 
     // if there was not a record initialize it
-    if (!(productionHead in linkedFollowEntries))
-        linkedFollowEntries[productionHead] = []
+    if (!(sender in linkedEntries))
+        linkedEntries[sender] = []
 
-    // link two follow entries together if they are not already linked
-    if (!linkedFollowEntries[productionHead].includes(nonTerminalSymbol))
-        linkedFollowEntries[productionHead].push(nonTerminalSymbol)
+    // link two entries together if they are not already linked
+    if (!linkedEntries[sender].includes(receiver))
+        linkedEntries[sender].push(receiver)
 
 }
 
@@ -677,6 +678,10 @@ function getNumberOfElementsOfFollowFunction(inputGrammar: Grammar, follow: Reco
 
 }
 
+/**
+ * when changing a function run this function to test if everything still works
+ * @returns 
+ */
 export function test() {
 
     const tests: TestType[] = [
@@ -893,5 +898,59 @@ function checkIfObjectIsEqualToSourceObject(sourceObject: Record<string, string[
     }
 
     return true;
+
+}
+
+/**
+ * puts entries inside first/follow
+ * @param inputGrammar 
+ * @param linkedEntries 
+ * @param firstOrFollow 
+ */
+function putEntriesInsideEntries(inputGrammar: Grammar, linkedEntries: Record<string, string[]>, firstOrFollow: Record<string, string[]>) {
+
+    let isWereElementsAddedToAFollow: boolean = true;
+    // iterate until no more elements are added inside a first/follow
+    do {
+
+        // get number of first/follow entries elements before putting first/follow inside first/follow
+        let numberOfElementsBeforeIteration = getNumberOfElementsOfFollowFunction(inputGrammar, firstOrFollow);
+
+        // put first/follow inside first/follow
+        for (const senderSymbol in linkedEntries) {
+
+            linkedEntries[senderSymbol].forEach(receiverSymbol => {
+                addArrayElementsInObjectAttribute(firstOrFollow, receiverSymbol, firstOrFollow[senderSymbol]);
+            });
+
+        }
+
+        // get number of first/follow entries elements after putting first/follow inside first/follow
+        let numberOfElementsAfterIteration = getNumberOfElementsOfFollowFunction(inputGrammar, firstOrFollow);
+
+        // console.log("numberOfElementsBeforeIteration", JSON.parse(JSON.stringify(numberOfElementsBeforeIteration)), "\nnumberOfElementsAfterIteration", JSON.parse(JSON.stringify(numberOfElementsAfterIteration)))
+
+        // if isWereElementsAddedToAFollowInThisIteration is true elements were added to a nonTerminalSymbol's first/follow
+        // if isWereElementsAddedToAFollowInThisIteration is false no elements were added to a nonTerminalSymbol's first/follow so we can exit the do{}while
+        let isWereElementsAddedToAFollowInThisIteration = false;
+        let count = 0; // used to point which nonTerminalSymbol fo the grammar we are considering
+
+        // check if elements were put inside a first/follow during this iteration 
+        while (!isWereElementsAddedToAFollowInThisIteration && count < inputGrammar.nonTerminalSymbols.length) {
+            let currentNonTerminalSymbol = inputGrammar.nonTerminalSymbols[count]; // store current nonTerminalSymbol
+            // console.log("currentNonTerminalSymbol", currentNonTerminalSymbol, "before", numberOfElementsBeforeIteration[currentNonTerminalSymbol], "after", numberOfElementsAfterIteration[currentNonTerminalSymbol])
+            // if true this means that elements were put inside a nonTerminalSymbol's first/follow
+            // so we cannot stop the do{}while but we have to do another iteration
+            // if false this means that no elements were put inside a nonTerminalSymbol's first/follow
+            // so we can stop the do{}while, namely, putting first/follow() inside first/follow()
+            if (numberOfElementsBeforeIteration[currentNonTerminalSymbol] != numberOfElementsAfterIteration[currentNonTerminalSymbol])
+                isWereElementsAddedToAFollowInThisIteration = true;
+            count++;
+        }
+
+        // update the do{}while condition
+        isWereElementsAddedToAFollow = isWereElementsAddedToAFollowInThisIteration;
+
+    } while (isWereElementsAddedToAFollow)
 
 }
