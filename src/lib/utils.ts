@@ -2,6 +2,7 @@ import { CheckSymbolFunctionReturnType } from "@/types/CheckSymbolFunctionReturn
 import { CheckSymbolGivenGrammarReturnType } from "@/types/CheckSymbolGivenGrammarReturnType";
 import { Grammar } from "@/types/Grammar";
 import { RecognizeSymbolReturnType } from "@/types/RecognizeSymbolReturnType";
+import { TestType } from "@/types/TestType";
 
 const endOfInputSymbol = "$";
 const endOfStackSymbol = endOfInputSymbol;
@@ -673,5 +674,184 @@ function getNumberOfElementsOfFollowFunction(inputGrammar: Grammar, follow: Reco
     });
 
     return numberOfElementsOfFollowFunction;
+
+}
+
+export function test() {
+
+    const tests: TestType[] = [
+        {
+            input: "E=>TE\'\nE\'=>+TE\'| e\nT=>FT\'\nT\'=>*FT\' | e\nF => (E) | id",
+            grammar: {
+                initialSymbol: "E",
+                nonTerminalSymbols: ['E', "E'", 'T', "T'", 'F'],
+                terminalSymbols: ['+', 'e', '*', '(', ')', 'id'],
+                productions: {
+                    E: ["TE'"],
+                    "E'": ["+TE'", 'e'],
+                    F: ['(E)', 'id'],
+                    T: ["FT'"],
+                    "T'": ["*FT'", 'e']
+                }
+            },
+            first: {
+                "(": ['('],
+                ")": [')'],
+                "*": ['*'],
+                "+": ['+'],
+                E: ['(', 'id'],
+                "E'": ['+', 'e'],
+                F: ['(', 'id'],
+                T: ['(', 'id'],
+                "T'": ['*', 'e'],
+                id: ['id']
+            },
+            follow: {
+                "(": [],
+                ")": [],
+                "*": [],
+                "+": [],
+                E: ['$', ')'],
+                "E'": ['$', ')'],
+                F: ['*', '+', '$', ')'],
+                T: ['+', '$', ')'],
+                "T'": ['+', '$', ')'],
+                id: []
+            }
+        }
+    ]
+
+
+    for (let count = 0; count < tests.length; count++) {
+
+        let test = tests[count];
+
+        let elementsAreTheSame: boolean = true;
+
+        /** check Grammar object */
+        let grammar = parseInput(test.input);
+        let grammarCounter = 0;
+        let objectKeys = Object.keys(test.grammar);
+        while (elementsAreTheSame && grammarCounter < objectKeys.length) {
+
+            let grammarKey = objectKeys[grammarCounter];
+
+            switch (grammarKey) {
+
+                case "initialSymbol":
+                    if (test.grammar[grammarKey] != grammar[grammarKey])
+                        elementsAreTheSame = false;
+                    if (!elementsAreTheSame)
+                        console.log("initialSymbol")
+                    break
+
+                case "nonTerminalSymbols":
+                    elementsAreTheSame = checkIfArraysAreTheSame(test.grammar[grammarKey], grammar[grammarKey])
+                    if (!elementsAreTheSame)
+                        console.log("nonTerminalSymbols")
+                    break;
+
+                case "terminalSymbols":
+                    elementsAreTheSame = checkIfArraysAreTheSame(test.grammar[grammarKey], grammar[grammarKey])
+                    if (!elementsAreTheSame)
+                        console.log("terminalSymbols")
+                    break;
+
+                case "productions":
+                    let objectKeys = Object.keys(test.grammar[grammarKey]);
+                    elementsAreTheSame = checkIfArraysAreTheSame(objectKeys, Object.keys(grammar[grammarKey]))
+                    if (!elementsAreTheSame)
+                        console.log("productionsHeads")
+                    let count = 0;
+                    while (elementsAreTheSame && count < objectKeys.length) {
+                        let currentObjectKey = objectKeys[count];
+
+                        elementsAreTheSame = checkIfArraysAreTheSame(test.grammar[grammarKey][currentObjectKey], grammar[grammarKey][currentObjectKey])
+                        if (!elementsAreTheSame)
+                            console.log("productionBody at productionHead", currentObjectKey)
+                        count++;
+                    }
+                    break;
+            }
+            grammarCounter++;
+        }
+
+        if (!elementsAreTheSame)
+            return;
+
+        /** check first object */
+        let firstFunctionResult = first(grammar);
+        elementsAreTheSame = checkIfObjectIsEqualToSourceObject(test.first, firstFunctionResult);
+
+        if (!elementsAreTheSame)
+            return;
+
+        let followFunctionResult = follow(grammar, firstFunctionResult);
+
+        elementsAreTheSame = checkIfObjectIsEqualToSourceObject(test.follow, followFunctionResult);
+
+        if (!elementsAreTheSame)
+            return;
+
+        if (elementsAreTheSame)
+            console.log(`Test #${count + 1}: Success`)
+    }
+
+}
+
+/**
+ * check if two arrays have the same elements
+ * @param firstArray 
+ * @param secondArray 
+ * @returns 
+ */
+function checkIfArraysAreTheSame(firstArray: string[], secondArray: string[]) {
+
+    // if arrays have different lengths they are not the same
+    if (firstArray.length != secondArray.length)
+        return false;
+
+    // if the arrays differ by one element they are not the same
+    for (let count = 0; count < firstArray.length; count++) {
+
+        let element = firstArray[count]; // get considered element
+
+        // if true element is not in secondArray
+        // that means that the two arrays are not the equals
+        if (secondArray.indexOf(element) == -1)
+            return false;
+    }
+
+    return true;
+
+}
+
+/**
+ * checks if two objects are the same object
+ * @param sourceObject 
+ * @param secondObject 
+ * @returns 
+ */
+function checkIfObjectIsEqualToSourceObject(sourceObject: Record<string, string[]>, secondObject: Record<string, string[]>) {
+
+    let objectKeys = Object.keys(sourceObject);
+
+    // if keys are not equals, objects are not the same
+    if (!checkIfArraysAreTheSame(objectKeys, Object.keys(secondObject))) {
+        console.log("objecthead")
+        return false;
+    }
+
+    // iterate over object keys
+    for (const objectHead in sourceObject) {
+
+        // if object bodies of every key are not the same, objects are not the same
+        if (!checkIfArraysAreTheSame(sourceObject[objectHead], secondObject[objectHead])) {
+            console.log("objectBody at head", objectHead)
+            return false;
+        }
+    }
+
+    return true;
 
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { parseInput, first, follow } from "@/lib/utils"
+import { parseInput, first, follow, test } from "@/lib/utils"
 import { useState } from "react"
 import styles from './page.module.css'
 import { Computed } from "@/types/Computed"
@@ -13,8 +13,11 @@ export default function Home() {
   function compute() {
 
     let grammar = parseInput(input);
+    console.log(grammar)
     let firstFunctionResult = first(grammar);
+    console.log(firstFunctionResult)
     let followFunctionResult = follow(grammar, firstFunctionResult);
+    console.log(followFunctionResult)
 
     setComputed({
       grammar: grammar,
@@ -29,6 +32,7 @@ export default function Home() {
       <textarea onChange={e => setInput(e.target.value)} />
 
       <button onClick={compute}>Compute</button>
+      <button onClick={test}>Test</button>
 
       {
         computed != null &&
