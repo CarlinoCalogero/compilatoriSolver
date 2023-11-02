@@ -279,6 +279,7 @@ export function parseInput(input: string) {
         terminalLength++;
     } while (possibleTerminalsArray.length != 0)
 
+    // console.log("newGrammar", newGrammar)
     return newGrammar;
 }
 
@@ -431,8 +432,9 @@ function recognizeSymbol(inputGrammar: Grammar, inputString: string) {
             recognizeSymbolReturnType.offset = recognizeSymbolReturnType.offset + 1;
         }
 
-        // console.log("substring", inputString.substring(0, offset))
+        // console.log("substring", inputString.substring(0, recognizeSymbolReturnType.offset))
         recognizeSymbolReturnType.checkSymbolGivenGrammarReturnType = checkSymbolGivenGrammar(inputGrammar, inputString.substring(0, recognizeSymbolReturnType.offset)); // check if the considered set of symbols is a terminalSymbol or nonTerminalSymbol
+        // console.log("checkSymbolGivenGrammarReturnType", JSON.parse(JSON.stringify(recognizeSymbolReturnType.checkSymbolGivenGrammarReturnType)))
         count++; // consider next character in inputString
     }
 
@@ -440,6 +442,8 @@ function recognizeSymbol(inputGrammar: Grammar, inputString: string) {
     if (!recognizeSymbolReturnType.checkSymbolGivenGrammarReturnType.isTerminalSymbol && !recognizeSymbolReturnType.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol && count == inputString.length) {
         recognizeSymbolReturnType.isError = true;
     }
+
+    // console.log("_checkSymbolGivenGrammarReturnType", JSON.parse(JSON.stringify(recognizeSymbolReturnType.checkSymbolGivenGrammarReturnType)))
 
     return recognizeSymbolReturnType;
 
@@ -464,7 +468,7 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
         // iterate over all production's bodies
         inputGrammar.productions[nonTerminalSymbol].forEach(productionBody => {
 
-            // console.log("productionBody", productionBody, follow)
+            // console.log("productionBody", productionBody, "\nfollow", JSON.parse(JSON.stringify(follow)))
 
             while (productionBody.length != 0) {
 
@@ -490,10 +494,15 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
                         // check what comes next of recognizedSetOfSymbols
                         let symbolsNextToRecognizedSetOfSymbols = recognizeSymbol(inputGrammar, productionBody);
 
+                        // get only the "first" next set of characters
+                        let firstSetOfCharactersNextToRecognizedSetOfSymbols = productionBody.substring(0, symbolsNextToRecognizedSetOfSymbols.offset)
+
+                        // console.log("firstSetOfCharactersNextToRecognizedSetOfSymbols", firstSetOfCharactersNextToRecognizedSetOfSymbols)
+
                         // if the symbols next to recognized set of symbols is a terminal we add it to the followArray
                         if (symbolsNextToRecognizedSetOfSymbols.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
-                            // console.log("_terminal", productionBody, "recognizedSetOfSymbols", recognizedSetOfSymbols)
-                            addArrayElementsInObjectAttribute(follow, recognizedSetOfSymbols, [productionBody]);
+                            // console.log("_terminal", firstSetOfCharactersNextToRecognizedSetOfSymbols, "recognizedSetOfSymbols", recognizedSetOfSymbols)
+                            addArrayElementsInObjectAttribute(follow, recognizedSetOfSymbols, [firstSetOfCharactersNextToRecognizedSetOfSymbols]);
                         }
 
                         // if the symbols next to recognized set of symbols is a nonTerminal symbol, everthing in 
@@ -501,13 +510,13 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
                         // Follow() of the recognized set of symbols
                         if (symbolsNextToRecognizedSetOfSymbols.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) {
 
-                            // console.log("_nonTerminal", productionBody, "recognizedSetOfSymbols", recognizedSetOfSymbols)
-                            addArrayElementsInObjectAttribute(follow, recognizedSetOfSymbols, first[productionBody]);
+                            // console.log("_nonTerminal", firstSetOfCharactersNextToRecognizedSetOfSymbols, "recognizedSetOfSymbols", recognizedSetOfSymbols)
+                            addArrayElementsInObjectAttribute(follow, recognizedSetOfSymbols, first[firstSetOfCharactersNextToRecognizedSetOfSymbols]);
 
                             // if the symbols next to recognized set of symbols is a nonTerminal symbol
                             // and this nonTerminal symbol has epsilon in its First()
                             // we call linkFollowEntriesTogether() function
-                            if (first[productionBody].includes(epsilon))
+                            if (first[firstSetOfCharactersNextToRecognizedSetOfSymbols].includes(epsilon))
                                 linkFollowEntriesTogether(linkedFollowEntries, nonTerminalSymbol, recognizedSetOfSymbols);
                         }
 
@@ -531,7 +540,7 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
     /** put Follow() inside Follow() */
     // get followGraphOrder
     let followGraphOrder = computeFollowInFollowGraph(linkedFollowEntries);
-    console.log("followGraphOrder", followGraphOrder)
+    // console.log("followGraphOrder", followGraphOrder)
     followGraphOrder.forEach(graph => {
 
         // the first followEntry is taken from the startSymbol
@@ -542,7 +551,7 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
         for (let count = 1; count < graph.length; count++) {
             // get receiverSymbol
             let receiverSymbol = graph[count];
-            console.log("count", count, "\nsenderSymbol", senderSymbol, "\nreceiverSymbol", receiverSymbol)
+            // console.log("count", count, "\nsenderSymbol", senderSymbol, "\nreceiverSymbol", receiverSymbol)
             // put fromSymbol Follow() inside inSymbol Follow()
             addArrayElementsInObjectAttribute(follow, receiverSymbol, follow[senderSymbol]);
             // update senderSymbol
@@ -744,18 +753,18 @@ function divideGraph(linkedFollowEntries: Record<string, string[]>, symbolsArray
 
     while (symbolsArrayCopy.length != 0) {
 
-        console.log("symbolsArrayCopy", [...symbolsArrayCopy])
+        // console.log("symbolsArrayCopy", [...symbolsArrayCopy])
 
         // consider a symbol
         let consideredSymbol = symbolsArrayCopy[0];
 
-        console.log("consideredSymbol", consideredSymbol, "linkedFollowEntries[consideredSymbol]", [...linkedFollowEntries[consideredSymbol]]);
+        // console.log("consideredSymbol", consideredSymbol, "linkedFollowEntries[consideredSymbol]", [...linkedFollowEntries[consideredSymbol]]);
 
         let currentGraph: string[] = [consideredSymbol]; // used to store the current graph symbols
         let currentGraphPossibleSymbols: string[] = [consideredSymbol]; // used to store the symbols that are considered to be in the current graph
         let alreadyExploredSymbols: string[] = [] // used to store already explored symbols
 
-        console.log("currentGraph", [...currentGraph], "\ncurrentGraphPossibleSymbols", [...currentGraphPossibleSymbols], "\nalreadyExploredSymbols", [...alreadyExploredSymbols])
+        // console.log("currentGraph", [...currentGraph], "\ncurrentGraphPossibleSymbols", [...currentGraphPossibleSymbols], "\nalreadyExploredSymbols", [...alreadyExploredSymbols])
 
         // given a symbol, the others symbols belong to the given symbol graph only if 
         // they have inward or outward arrows between each other and with the given symbol
@@ -763,19 +772,19 @@ function divideGraph(linkedFollowEntries: Record<string, string[]>, symbolsArray
 
             let currentPossibleSymbol = currentGraphPossibleSymbols[0]; // store the current consideredSymbol
 
-            console.log("currentPossibleSymbol", currentPossibleSymbol)
+            // console.log("currentPossibleSymbol", currentPossibleSymbol)
 
             // iterate over the symbols array in order to check all symbols
             symbolsArray.forEach(anotherSymbol => {
 
-                console.log("anotherSymbol", anotherSymbol)
+                // console.log("anotherSymbol", anotherSymbol)
 
                 // if currentPossibleSymbol has inwards arrows then it belongs to the graph
                 if (anotherSymbol in linkedFollowEntries && linkedFollowEntries[anotherSymbol].includes(currentPossibleSymbol)) {
                     if (!currentGraph.includes(currentPossibleSymbol))
                         currentGraph.push(currentPossibleSymbol);
                     symbolsArrayCopy.splice(symbolsArrayCopy.indexOf(currentPossibleSymbol), 1); // remove it form the symbolsArrayCopy because we now know that belongs to a graph
-                    console.log("_inward_\ncurrentGraph", [...currentGraph], "\nsymbolsArrayCopy", [...symbolsArrayCopy])
+                    // console.log("_inward_\ncurrentGraph", [...currentGraph], "\nsymbolsArrayCopy", [...symbolsArrayCopy])
                 }
 
                 // if currentPossibleSymbol was not already explored and
@@ -783,7 +792,7 @@ function divideGraph(linkedFollowEntries: Record<string, string[]>, symbolsArray
                 if (!alreadyExploredSymbols.includes(currentPossibleSymbol) && currentPossibleSymbol in linkedFollowEntries) {
                     currentGraphPossibleSymbols = [...currentGraphPossibleSymbols, ...linkedFollowEntries[currentPossibleSymbol]]
                     currentGraphPossibleSymbols = removeDuplicates(currentGraphPossibleSymbols)
-                    console.log("_outward_\ncurrentGraphPossibleSymbols", [...currentGraphPossibleSymbols])
+                    // console.log("_outward_\ncurrentGraphPossibleSymbols", [...currentGraphPossibleSymbols])
                 }
 
                 if (!alreadyExploredSymbols.includes(currentPossibleSymbol))
@@ -794,20 +803,20 @@ function divideGraph(linkedFollowEntries: Record<string, string[]>, symbolsArray
 
             currentGraphPossibleSymbols.splice(0, 1); // remove the already examined element
 
-            console.log("_currentGraph", [...currentGraph], "\n_currentGraphPossibleSymbols", [...currentGraphPossibleSymbols], "\n_alreadyExploredSymbols", [...alreadyExploredSymbols])
+            // console.log("_currentGraph", [...currentGraph], "\n_currentGraphPossibleSymbols", [...currentGraphPossibleSymbols], "\n_alreadyExploredSymbols", [...alreadyExploredSymbols])
         }
 
         symbolsArrayCopy.splice(symbolsArrayCopy.indexOf(consideredSymbol), 1); // remove consideredSymbol from the symbolsArrayCopy because it obviuously belongs to a graph
 
-        console.log("_symbolsArrayCopy", symbolsArrayCopy)
+        // console.log("_symbolsArrayCopy", symbolsArrayCopy)
 
         // add currents graph to the graphArray
         graphs.push(currentGraph);
-        console.log("graphs", [...graphs])
+        // console.log("graphs", [...graphs])
 
     }
 
-    console.log("_graphs", [...graphs])
+    // console.log("_graphs", [...graphs])
     return graphs;
 
 }
