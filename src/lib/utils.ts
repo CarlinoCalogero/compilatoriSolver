@@ -523,10 +523,8 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
         }
     }
 
-    console.log("linkedFollowEntries", linkedFollowEntries, "\nfollow", follow);
     // get followGraphOrder
     let followGraphOrder = computeFollowInFollowGraph(linkedFollowEntries);
-    console.log("followGraphOrder", followGraphOrder);
     // the first followEntry is taken from the startSymbol
     let senderSymbol = followGraphOrder[0];
     // iterate over the followGraphOrder

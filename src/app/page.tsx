@@ -1,26 +1,99 @@
 'use client'
 
-import { first, follow, parseInput } from "@/lib/utils"
+import { parseInput, first, follow } from "@/lib/utils"
 import { useState } from "react"
+import styles from './page.module.css'
+import { Computed } from "@/types/Computed"
 
 export default function Home() {
 
   const [input, setInput] = useState('')
+  const [computed, setComputed] = useState<Computed | null>(null)
+
+  function compute() {
+
+    let grammar = parseInput(input);
+    let firstFunctionResult = first(grammar);
+    let followFunctionResult = follow(grammar, firstFunctionResult);
+
+    setComputed({
+      grammar: grammar,
+      first: firstFunctionResult,
+      follow: followFunctionResult
+    });
+  }
 
   return (
-    <div>
+    <div className={styles.outerDiv}>
 
       <textarea onChange={e => setInput(e.target.value)} />
 
-      <button onClick={e => console.log(parseInput(input))}>Print</button>
+      <button onClick={compute}>Compute</button>
 
-      <button onClick={e => first(parseInput(input))}>first</button>
+      {
+        computed != null &&
+        <div className={styles.tablesDiv}>
 
-      <button onClick={e => {
-        let grammar = parseInput(input);
-        let firstReturnValue = first(grammar);
-        console.log(follow(grammar, firstReturnValue))
-      }}>follow</button>
+          {
+            computed.first != null &&
+            <div>
+              <span>First</span>
+
+              <table>
+
+                <thead>
+                  <tr>
+                    {
+                      Object.keys(computed.first).map((symbol, i) => <td key={"td_thead_first_" + i}>{symbol}</td>)
+                    }
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <tr>
+                    {
+                      Object.keys(computed.first).map((symbol, i) => <td key={"td_tbody_first_" + i}>{computed.first != null && (computed.first[symbol].length == 0 ? '-' : computed.first[symbol].toString())}</td>)
+                    }
+                  </tr>
+                </tbody>
+
+              </table>
+
+            </div>
+          }
+
+
+          {
+            computed.follow != null &&
+            <div>
+              <span>Follow</span>
+
+              <table>
+
+                <thead>
+                  <tr>
+                    {
+                      Object.keys(computed.follow).map((symbol, i) => <td key={"td_thead_follow_" + i}>{symbol}</td>)
+                    }
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <tr>
+                    {
+                      Object.keys(computed.follow).map((symbol, i) => <td key={"td_tbody_follow_" + i}>{computed.follow != null && (computed.follow[symbol].length == 0 ? '-' : computed.follow[symbol].toString())}</td>)
+                    }
+                  </tr>
+                </tbody>
+
+              </table>
+
+            </div>
+          }
+
+
+        </div>
+      }
 
     </div>
   )

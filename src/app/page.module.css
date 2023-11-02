@@ -1,0 +1,24 @@
+.outerDiv {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin: 10vh 0;
+    gap: 2rem;
+}
+
+.outerDiv > textarea {
+    width: 20rem;
+    height: 15rem;
+    font-size: 1.2rem;
+}
+
+.outerDiv > button {
+    padding: 0.8rem 2rem 0.8rem 2rem;
+}
+
+.tablesDiv {
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+}
