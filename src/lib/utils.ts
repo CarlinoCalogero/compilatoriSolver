@@ -537,28 +537,53 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
 
     }
 
-    /** put Follow() inside Follow() */
-    // get followGraphOrder
-    let followGraphOrder = computeFollowInFollowGraph(linkedFollowEntries);
-    // console.log("followGraphOrder", followGraphOrder)
-    followGraphOrder.forEach(graph => {
+    // console.log("linkedFollowEntries", JSON.parse(JSON.stringify(linkedFollowEntries)), "\nfollow", JSON.parse(JSON.stringify(follow)))
 
-        // the first followEntry is taken from the startSymbol
-        let senderSymbol = graph[0];
-        // iterate over the graph
-        // we start from the second symbol, we know that the second symbol exists because 
-        // graph has at least two elements
-        for (let count = 1; count < graph.length; count++) {
-            // get receiverSymbol
-            let receiverSymbol = graph[count];
-            // console.log("count", count, "\nsenderSymbol", senderSymbol, "\nreceiverSymbol", receiverSymbol)
-            // put fromSymbol Follow() inside inSymbol Follow()
-            addArrayElementsInObjectAttribute(follow, receiverSymbol, follow[senderSymbol]);
-            // update senderSymbol
-            senderSymbol = receiverSymbol;
+    /** put Follow() inside Follow() */
+    let isWereElementsAddedToAFollow: boolean = true;
+    // iterate until no more elements are added inside a follow
+    do {
+
+        // get number of follow entries elements before putting follow inside follow
+        let numberOfElementsBeforeIteration = getNumberOfElementsOfFollowFunction(inputGrammar, follow);
+
+        // put follow inside follow
+        for (const senderSymbol in linkedFollowEntries) {
+
+            linkedFollowEntries[senderSymbol].forEach(receiverSymbol => {
+                addArrayElementsInObjectAttribute(follow, receiverSymbol, follow[senderSymbol]);
+            });
+
         }
 
-    });
+        // get number of follow entries elements after putting follow inside follow
+        let numberOfElementsAfterIteration = getNumberOfElementsOfFollowFunction(inputGrammar, follow);
+
+        // console.log("numberOfElementsBeforeIteration", JSON.parse(JSON.stringify(numberOfElementsBeforeIteration)), "\nnumberOfElementsAfterIteration", JSON.parse(JSON.stringify(numberOfElementsAfterIteration)))
+
+        // if isWereElementsAddedToAFollowInThisIteration is true elements were added to a nonTerminalSymbol's follow
+        // if isWereElementsAddedToAFollowInThisIteration is false no elements were added to a nonTerminalSymbol's follow so we can exit the do{}while
+        let isWereElementsAddedToAFollowInThisIteration = false;
+        let count = 0; // used to point which nonTerminalSymbol fo the grammar we are considering
+
+        // check if elements were put inside a follow during this iteration 
+        while (!isWereElementsAddedToAFollowInThisIteration && count < inputGrammar.nonTerminalSymbols.length) {
+            let currentNonTerminalSymbol = inputGrammar.nonTerminalSymbols[count]; // store current nonTerminalSymbol
+            // console.log("currentNonTerminalSymbol", currentNonTerminalSymbol, "before", numberOfElementsBeforeIteration[currentNonTerminalSymbol], "after", numberOfElementsAfterIteration[currentNonTerminalSymbol])
+            // if true this means that elements were put inside a nonTerminalSymbol's follow
+            // so we cannot stop the do{}while but we have to do another iteration
+            // if false this means that no elements were put inside a nonTerminalSymbol's follow
+            // so we can stop the do{}while, namely, putting follow() inside follow()
+            if (numberOfElementsBeforeIteration[currentNonTerminalSymbol] != numberOfElementsAfterIteration[currentNonTerminalSymbol])
+                isWereElementsAddedToAFollowInThisIteration = true;
+            count++;
+        }
+
+        // update the do{}while condition
+        isWereElementsAddedToAFollow = isWereElementsAddedToAFollowInThisIteration;
+
+    } while (isWereElementsAddedToAFollow)
+
 
     // iterate all terminal symbols
     for (const terminalSymbol in inputGrammar.terminalSymbols) {
@@ -625,198 +650,28 @@ function addArrayElementsInObjectAttribute(object: Record<string, string[]>, att
 }
 
 /**
- * this function figures out the right order to which put which Follow() inside which Follow()
- * @param linkedFollowEntries 
+ * given a follow in input it computes how many elements eache nonTerminalSymbol 
+ * of input grammar has in its follow entry
+ * @param inputGrammar 
+ * @param follow 
  * @returns 
  */
-function computeFollowInFollowGraph(linkedFollowEntries: Record<string, string[]>) {
+function getNumberOfElementsOfFollowFunction(inputGrammar: Grammar, follow: Record<string, string[]>) {
 
-    let orderedGraphs: string[][] = [] // used to store the graphs with the symbols in order
+    let numberOfElementsOfFollowFunction: Record<string, number> = {} // used to store how many entries have eache nonTerminalSymbol follow() function
 
-    // console.log("linkedFollowEntries", linkedFollowEntries)
+    // iterate over all non terminalSymbols
+    inputGrammar.nonTerminalSymbols.forEach(nonTerminalSymbol => {
 
-    let symbolsArray: string[] = []; // used to store all symbols
-    // get all symbols
-    for (const symbol in linkedFollowEntries) {
-        symbolsArray = [...symbolsArray, symbol, ...linkedFollowEntries[symbol]]
-    }
+        let numberOfElements = 0; // used to store how many entries has considered nonTerminalSymbol in follow() function
 
-    // remove duplicates
-    symbolsArray = removeDuplicates(symbolsArray);
+        if (nonTerminalSymbol in follow) // if true then there are entries in nonTerminalSymbol follow() function
+            numberOfElements = follow[nonTerminalSymbol].length // get how many entries has nonTerminalSymbol follow() function
 
-    // divide graphs
-    let graphs = divideGraph(linkedFollowEntries, symbolsArray);
-
-    // by diving the graph we now know for sure that each graph will have
-    // only one start symbol and only one end symbol
-    graphs.forEach(graph => {
-
-        let orderedSymbol: string[] = new Array(graph.length); // used to store symbols in order of follows
-
-        let possibleFirstSymbolsArray = [...graph]; // only the start symbol will remain inside
-        let possibleLastSymbolsArray = [...graph]; // only the last symbol will remain inside
-
-        /** the first symbol in the order is the one that has no inward arrows */
-        /** the last symbol in the order is the one that has no outward arrows */
-        // iterate over each linkedFollow entry
-        for (const symbol in linkedFollowEntries) {
-            // we remove symbols that have inward arrows
-            // remaining symbol is first symbol
-            linkedFollowEntries[symbol].forEach(receiverSymbol => {
-                let symbolIndex = possibleFirstSymbolsArray.indexOf(receiverSymbol)// get symbol index in array
-                if (symbolIndex != -1) // if symbolIndex == -1 the symbol was already removed from the array
-                    possibleFirstSymbolsArray.splice(symbolIndex, 1); // removes symbol from array
-            });
-
-            // we remove symbols that have outward arrows
-            // remaining symbol is last symbol
-            let symbolIndex = possibleLastSymbolsArray.indexOf(symbol)// get symbol index in array
-            if (symbolIndex != -1) // if symbolIndex == -1 the symbol was already removed from the array
-                possibleLastSymbolsArray.splice(symbolIndex, 1); // removes symbol from array
-        }
-
-        // console.log("possibleFirstSymbolsArray", [...possibleFirstSymbolsArray], "possibleLastSymbolsArray", [...possibleLastSymbolsArray])
-
-        // add start symbol to orderedSymbol array
-        orderedSymbol[0] = possibleFirstSymbolsArray[0];
-        // remove start symbol from symbolsArray
-        symbolsArray.splice(symbolsArray.indexOf(possibleFirstSymbolsArray[0]), 1);
-
-        // if no last symbol was found there is an error
-        if (possibleLastSymbolsArray.length != 1)
-            console.log("Error")
-
-        // add last symbol to orderedSymbol array
-        orderedSymbol[orderedSymbol.length - 1] = possibleLastSymbolsArray[0];
-        // remove last symbol from symbolsArray
-        symbolsArray.splice(symbolsArray.indexOf(possibleLastSymbolsArray[0]), 1);
-
-        /** figure out other symbols order */
-        // used to store the index of the orderedSymbol array in which the next symbol 
-        // in line will be placed
-        // min value of this variable is 1
-        // max value of this variable will be orderedSymbol.length - 2
-        let nextOrderedSymbolIndex = 1;
-        // iterate over the orderedSymbol array
-        for (let count = 0; count < orderedSymbol.length; count++) {
-
-            // if we are considering the last symbol we can skip everything because
-            // last symbol does not have outward arrows
-            if (nextOrderedSymbolIndex != orderedSymbol.length - 1) {
-
-                let nextInOrderSymbol = linkedFollowEntries[orderedSymbol[count]][0]; // used to store the next symbol to be inserted inside the orderedSymbol array
-                // if array only has one element than this element is the next symbol
-                // so we iterate over the linkedFollowEntry only if the array has more than one element
-                if (linkedFollowEntries[orderedSymbol[count]].length > 1) {
-                    // iterate over the linkedFollowEntry
-                    for (let counter = 1; counter < linkedFollowEntries[orderedSymbol[count]].length; counter++) {
-
-                        let currentConsideredSymbol = linkedFollowEntries[orderedSymbol[count]][counter]; // get considered symbol
-
-                        // if nextInOrderSymbol equals to last symbol
-                        // currentConsideredSymbol becomes nextInOrderSymbol because
-                        // last symbol is already inside the orderedSymbol array
-                        if (nextInOrderSymbol != orderedSymbol[orderedSymbol.length - 1]) {
-                            nextInOrderSymbol = currentConsideredSymbol;
-                        } else if (linkedFollowEntries[currentConsideredSymbol].includes(nextInOrderSymbol)) {
-                            // check if current nextInOrderSymbol has inward arrow from currentConsideredSymbol
-                            // if nextInOrderSymbol equals to last symbol then we skip it because
-                            // last symbol does not have outward arrows
-                            // if true than currentConsideredSymbol becomes the nextInOrderSymbol
-                            nextInOrderSymbol = currentConsideredSymbol;
-                        }
-                    }
-                }
-
-                // add nextInOrderSymbol to the orderedSymbol array
-                orderedSymbol[nextOrderedSymbolIndex] = nextInOrderSymbol;
-                // increment nextOrderedSymbolIndex
-                nextOrderedSymbolIndex++;
-                // remove newly added symbol from symbolsArray
-                symbolsArray.splice(symbolsArray.indexOf(nextInOrderSymbol), 1);
-            }
-
-        }
-
-        // console.log("orderedSymbol", [...orderedSymbol])
-        orderedGraphs.push(orderedSymbol);
+        numberOfElementsOfFollowFunction[nonTerminalSymbol] = numberOfElements; // save the entries nonTerminalSymbol of follow() function inside the array
 
     });
 
-    return orderedGraphs;
-}
-
-function divideGraph(linkedFollowEntries: Record<string, string[]>, symbolsArray: string[]) {
-
-    let symbolsArrayCopy = [...symbolsArray]; // get a copy of symbols array
-    let graphs: string[][] = [];
-
-    while (symbolsArrayCopy.length != 0) {
-
-        // console.log("symbolsArrayCopy", [...symbolsArrayCopy])
-
-        // consider a symbol
-        let consideredSymbol = symbolsArrayCopy[0];
-
-        // console.log("consideredSymbol", consideredSymbol, "linkedFollowEntries[consideredSymbol]", [...linkedFollowEntries[consideredSymbol]]);
-
-        let currentGraph: string[] = [consideredSymbol]; // used to store the current graph symbols
-        let currentGraphPossibleSymbols: string[] = [consideredSymbol]; // used to store the symbols that are considered to be in the current graph
-        let alreadyExploredSymbols: string[] = [] // used to store already explored symbols
-
-        // console.log("currentGraph", [...currentGraph], "\ncurrentGraphPossibleSymbols", [...currentGraphPossibleSymbols], "\nalreadyExploredSymbols", [...alreadyExploredSymbols])
-
-        // given a symbol, the others symbols belong to the given symbol graph only if 
-        // they have inward or outward arrows between each other and with the given symbol
-        while (currentGraphPossibleSymbols.length != 0) {
-
-            let currentPossibleSymbol = currentGraphPossibleSymbols[0]; // store the current consideredSymbol
-
-            // console.log("currentPossibleSymbol", currentPossibleSymbol)
-
-            // iterate over the symbols array in order to check all symbols
-            symbolsArray.forEach(anotherSymbol => {
-
-                // console.log("anotherSymbol", anotherSymbol)
-
-                // if currentPossibleSymbol has inwards arrows then it belongs to the graph
-                if (anotherSymbol in linkedFollowEntries && linkedFollowEntries[anotherSymbol].includes(currentPossibleSymbol)) {
-                    if (!currentGraph.includes(currentPossibleSymbol))
-                        currentGraph.push(currentPossibleSymbol);
-                    symbolsArrayCopy.splice(symbolsArrayCopy.indexOf(currentPossibleSymbol), 1); // remove it form the symbolsArrayCopy because we now know that belongs to a graph
-                    // console.log("_inward_\ncurrentGraph", [...currentGraph], "\nsymbolsArrayCopy", [...symbolsArrayCopy])
-                }
-
-                // if currentPossibleSymbol was not already explored and
-                // has outwards arrows put them inside currentGraphPossibleSymbols
-                if (!alreadyExploredSymbols.includes(currentPossibleSymbol) && currentPossibleSymbol in linkedFollowEntries) {
-                    currentGraphPossibleSymbols = [...currentGraphPossibleSymbols, ...linkedFollowEntries[currentPossibleSymbol]]
-                    currentGraphPossibleSymbols = removeDuplicates(currentGraphPossibleSymbols)
-                    // console.log("_outward_\ncurrentGraphPossibleSymbols", [...currentGraphPossibleSymbols])
-                }
-
-                if (!alreadyExploredSymbols.includes(currentPossibleSymbol))
-                    alreadyExploredSymbols.push(currentPossibleSymbol);
-
-            });
-
-
-            currentGraphPossibleSymbols.splice(0, 1); // remove the already examined element
-
-            // console.log("_currentGraph", [...currentGraph], "\n_currentGraphPossibleSymbols", [...currentGraphPossibleSymbols], "\n_alreadyExploredSymbols", [...alreadyExploredSymbols])
-        }
-
-        symbolsArrayCopy.splice(symbolsArrayCopy.indexOf(consideredSymbol), 1); // remove consideredSymbol from the symbolsArrayCopy because it obviuously belongs to a graph
-
-        // console.log("_symbolsArrayCopy", symbolsArrayCopy)
-
-        // add currents graph to the graphArray
-        graphs.push(currentGraph);
-        // console.log("graphs", [...graphs])
-
-    }
-
-    // console.log("_graphs", [...graphs])
-    return graphs;
+    return numberOfElementsOfFollowFunction;
 
 }
