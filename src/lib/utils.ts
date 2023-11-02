@@ -523,8 +523,24 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
         }
     }
 
-    console.log("linkedFollowEntries", linkedFollowEntries);
-    computeFollowInFollowGraph(inputGrammar, linkedFollowEntries)
+    console.log("linkedFollowEntries", linkedFollowEntries, "\nfollow", follow);
+    // get followGraphOrder
+    let followGraphOrder = computeFollowInFollowGraph(linkedFollowEntries);
+    console.log("followGraphOrder", followGraphOrder);
+    // the first followEntry is taken from the startSymbol
+    let senderSymbol = followGraphOrder[0];
+    // iterate over the followGraphOrder
+    // we start from the second symbol, we know that the second symbol exists because 
+    // followGraphOrder has at least two elements
+    for (let count = 1; count < followGraphOrder.length; count++) {
+        // get receiverSymbol
+        let receiverSymbol = followGraphOrder[count];
+        // put fromSymbol Follow() inside inSymbol Follow()
+        addArrayElementsInObjectAttribute(follow, receiverSymbol, follow[senderSymbol]);
+        // update senderSymbol
+        senderSymbol = receiverSymbol;
+    }
+
     return follow;
 
 }
@@ -572,9 +588,15 @@ function addArrayElementsInObjectAttribute(object: Record<string, string[]>, att
 
 }
 
-function computeFollowInFollowGraph(inputGrammar: Grammar, linkedFollowEntries: Record<string, string[]>) {
+/**
+ * this function figures out the right order to which put which Follow() inside which Follow()
+ * @param linkedFollowEntries 
+ * @returns 
+ */
+function computeFollowInFollowGraph(linkedFollowEntries: Record<string, string[]>) {
 
     let symbolsArray: string[] = []; // used to store all symbols
+    // get all symbols
     for (const symbol in linkedFollowEntries) {
         symbolsArray = [...symbolsArray, symbol, ...linkedFollowEntries[symbol]]
     }
@@ -642,15 +664,15 @@ function computeFollowInFollowGraph(inputGrammar: Grammar, linkedFollowEntries: 
             if (linkedFollowEntries[orderedSymbol[count]].length > 1) {
                 // iterate over the linkedFollowEntry
                 for (let counter = 1; counter < linkedFollowEntries[orderedSymbol[count]].length; counter++) {
-                    
+
                     let currentConsideredSymbol = linkedFollowEntries[orderedSymbol[count]][counter]; // get considered symbol
-                    
+
                     // if nextInOrderSymbol equals to last symbol
                     // currentConsideredSymbol becomes nextInOrderSymbol because
                     // last symbol is already inside the orderedSymbol array
                     if (nextInOrderSymbol != orderedSymbol[orderedSymbol.length - 1]) {
                         nextInOrderSymbol = currentConsideredSymbol;
-                    } else if (isDoesSecondSymbolHasInwardArrowFromFirstSymbol(linkedFollowEntries, currentConsideredSymbol, nextInOrderSymbol)) {
+                    } else if (linkedFollowEntries[currentConsideredSymbol].includes(nextInOrderSymbol)) {
                         // check if current nextInOrderSymbol has inward arrow from currentConsideredSymbol
                         // if nextInOrderSymbol equals to last symbol then we skip it because
                         // last symbol does not have outward arrows
@@ -670,9 +692,5 @@ function computeFollowInFollowGraph(inputGrammar: Grammar, linkedFollowEntries: 
 
     }
 
-    console.log("orderedSymbol", orderedSymbol)
-}
-
-function isDoesSecondSymbolHasInwardArrowFromFirstSymbol(linkedFollowEntries: Record<string, string[]>, firstSymbol: string, secondSymbol: string) {
-    return linkedFollowEntries[firstSymbol].includes(secondSymbol);
+    return orderedSymbol;
 }
