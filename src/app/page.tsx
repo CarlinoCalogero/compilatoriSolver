@@ -1,6 +1,6 @@
 'use client'
 
-import { parseInput, first, follow, test, parsingTable, nonRecursivePredictiveParsing, reverseArray } from "@/lib/utils"
+import { parseInput, first, follow, test, parsingTable, nonRecursivePredictiveParsing, reverseArray, automaLR0 } from "@/lib/utils"
 import { useState } from "react"
 import styles from './page.module.css'
 import { Computed } from "@/types/Computed"
@@ -21,15 +21,17 @@ export default function Home() {
     console.log(followFunctionResult)
     let parsingTableResult = parsingTable(grammar, firstFunctionResult, followFunctionResult)
     console.log("parsingTableResult", parsingTableResult)
-    let nonRecursivePredictiveParsingResult = nonRecursivePredictiveParsing(grammar, "id+id*id$", parsingTableResult)
-    console.log("nonRecursivePredictiveParsingResult", nonRecursivePredictiveParsingResult)
+    // let nonRecursivePredictiveParsingResult = nonRecursivePredictiveParsing(grammar, "id+id*id$", parsingTableResult)
+    // console.log("nonRecursivePredictiveParsingResult", nonRecursivePredictiveParsingResult)
+
+    automaLR0(grammar)
 
     setComputed({
       grammar: grammar,
       first: firstFunctionResult,
       follow: followFunctionResult,
       parsingTable: parsingTableResult,
-      nonRecursivePredictiveParsing: nonRecursivePredictiveParsingResult
+      nonRecursivePredictiveParsing: null
     });
   }
 

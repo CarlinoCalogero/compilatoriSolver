@@ -1,6 +1,7 @@
 import { CheckSymbolFunctionReturnType } from "@/types/CheckSymbolFunctionReturnType";
 import { CheckSymbolGivenGrammarReturnType } from "@/types/CheckSymbolGivenGrammarReturnType";
 import { Grammar } from "@/types/Grammar";
+import { ItemSet } from "@/types/ItemSet";
 import { NonRecursivePredictiveParsingReturnType } from "@/types/NonRecursivePredictiveParsingReturnType";
 import { RecognizeSymbolReturnType } from "@/types/RecognizeSymbolReturnType";
 import { TestType } from "@/types/TestType";
@@ -9,7 +10,8 @@ const endOfInputSymbol = "$";
 const endOfStackSymbol = endOfInputSymbol;
 const epsilon = "e";
 const error = "Error";
-const accept = "accept"
+const accept = "accept";
+const itemPointer = ".";
 
 /**
  * used in parseInput() function, given a symbol in input this function figures out which kind of symbol it is
@@ -1213,4 +1215,131 @@ export function reverseArray(array: string[]) {
     console.log(array, arrayCopy)
 
     return arrayCopy;
+}
+
+function closure(inputGrammar: Grammar, inputItem: string, alreadyExploredNonTerminalSymbols: string[] = []) {
+
+    let itemSet: ItemSet = {
+        kernel: [],
+        notInKernel: []
+    }
+
+    // if inputItem is fake production or has not the . right after the >
+    // this inputItem belongs to the kernel
+    if ((inputItem == `${inputGrammar.initialSymbol}'=>${itemPointer}${inputGrammar.initialSymbol}`)
+        || inputItem.charAt(inputItem.indexOf(">") + 1) != itemPointer) {
+        itemSet.kernel = [inputItem];
+    } else { // if inputItem has the . right after the > his inputItem is not in the kernel
+        itemSet.notInKernel = [inputItem]
+    }
+
+    // get substring after the .
+    let symbolNextToItemPointer = inputItem.substring(inputItem.indexOf(itemPointer) + 1)
+
+    // console.log("symbolNextToItemPointer", symbolNextToItemPointer)
+
+    // do nothing if symbol is empty string or epsilon
+    if (symbolNextToItemPointer != "" && symbolNextToItemPointer != epsilon) {
+
+        // recognize symbol next to the .
+        let responce = recognizeSymbol(inputGrammar, symbolNextToItemPointer);
+
+        // get recognized symbol
+        let recognizedSymbol = symbolNextToItemPointer.substring(0, responce.offset);
+
+        // console.log("recognizedSymbol", recognizedSymbol, "alreadyExploredNonTerminalSymbols", [...alreadyExploredNonTerminalSymbols])
+
+        // if recognizedSymbol is terminal do nothing
+        // if recognizedSymbol is nonTerminal and was not already explored compute the algorithm
+        if (responce.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol && !alreadyExploredNonTerminalSymbols.includes(recognizedSymbol)) {
+
+            // add nonTerminal symbol to alreadyExploredNonTerminalSymbols array
+            alreadyExploredNonTerminalSymbols.push(recognizedSymbol);
+
+            // console.log("alreadyExploredNonTerminalSymbols", [...alreadyExploredNonTerminalSymbols])
+
+            // if is non terminal add productions to item set
+            inputGrammar.productions[recognizedSymbol].forEach(productionBody => {
+
+                // put . inside production
+                let productionWithItemPointer = `${recognizedSymbol}=>${itemPointer}${productionBody}`
+
+                // console.log("productionWithItemPointer", productionWithItemPointer)
+                // add items to closure
+                let returnItemSet = closure(inputGrammar, productionWithItemPointer, alreadyExploredNonTerminalSymbols);
+                itemSet.kernel = [...itemSet.kernel, ...returnItemSet.kernel];
+                itemSet.notInKernel = [...itemSet.notInKernel, ...returnItemSet.notInKernel];
+
+            });
+        }
+
+    }
+
+    return itemSet;
+}
+
+function goTo(inputGrammar: Grammar, inputItemSet: ItemSet, nonTerminalSymbol: string) {
+
+    let itemSet: ItemSet = {
+        kernel: [],
+        notInKernel: []
+    }
+
+    // get all items
+    let itemsArray = [...inputItemSet.kernel, ...inputItemSet.notInKernel];
+
+    itemsArray.forEach(item => {
+
+        // get the index of the item pointer
+        let indexOfItemPointerInItem = item.indexOf(itemPointer);
+
+        // get the substring after the . in item
+        let itemBodyAfterTheItemPointer = item.substring(indexOfItemPointerInItem + 1)
+
+        // console.log("itemBodyAfterTheItemPointer", itemBodyAfterTheItemPointer)
+
+        // recognize the symbol
+        let responce = recognizeSymbol(inputGrammar, itemBodyAfterTheItemPointer);
+
+        // get the recognized symbol
+        let recognizedSymbol = itemBodyAfterTheItemPointer.substring(0, responce.offset)
+
+        // console.log("recognizedSymbol", recognizedSymbol)
+
+        // if recognizedSymbol equals the input nonTerminalSymbol
+        // advance the itemPointer nad put it inside the goTo ItemSet
+        if (recognizedSymbol == nonTerminalSymbol) {
+
+            // shift the . inside the item
+            let itemAfterItemPointerShift = `${item.substring(0, indexOfItemPointerInItem)}${nonTerminalSymbol}${itemPointer}${item.substring(indexOfItemPointerInItem + nonTerminalSymbol.length + 1)}`
+
+            // console.log("itemAfterItemPointerShift", itemAfterItemPointerShift)
+
+            // call the closure
+            const closureReturnItemSet = closure(inputGrammar, itemAfterItemPointerShift);
+
+            // console.log("closureReturnItemSet", closureReturnItemSet)
+
+            // add the closure itemSet to the goTo itemSet
+            itemSet.kernel = [...itemSet.kernel, ...closureReturnItemSet.kernel];
+            itemSet.notInKernel = [...itemSet.notInKernel, ...closureReturnItemSet.notInKernel];
+        }
+
+    });
+
+    return itemSet;
+
+}
+
+export function automaLR0(inputGrammar: Grammar) {
+
+    let newGrammar: Grammar = JSON.parse(JSON.stringify(inputGrammar));
+
+    let newFakeInitialSymbol = `${inputGrammar.initialSymbol}'`
+    newGrammar.initialSymbol = newFakeInitialSymbol;
+    newGrammar.nonTerminalSymbols.push(newFakeInitialSymbol);
+    newGrammar.productions[newFakeInitialSymbol] = [inputGrammar.initialSymbol]
+
+    console.log("newGrammar", JSON.parse(JSON.stringify(newGrammar)));
+
 }
