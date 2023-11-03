@@ -5,7 +5,6 @@ import { useState } from "react"
 import styles from './page.module.css'
 import { Computed } from "@/types/Computed"
 import { NonRecursivePredictiveParsingReturnType } from "@/types/NonRecursivePredictiveParsingReturnType"
-import Error from "next/error"
 
 export default function Home() {
 
@@ -89,7 +88,7 @@ export default function Home() {
           <span>{"T'=>*FT'|e"}</span>
           <span>{"F=>(E)|id"}</span>
         </div>
-        <span>Where epsilon is "e"</span>
+        <span>{"Where epsilon is 'e'"}</span>
       </div>
 
 
