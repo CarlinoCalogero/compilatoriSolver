@@ -14,6 +14,7 @@ export default function Home() {
 
   function compute() {
 
+    // create an "empty" object
     let newComputed: Computed = {
       grammar: null,
       first: null,
