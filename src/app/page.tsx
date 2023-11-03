@@ -1,9 +1,10 @@
 'use client'
 
-import { parseInput, first, follow, test, parsingTable } from "@/lib/utils"
+import { parseInput, first, follow, test, parsingTable, nonRecursivePredictiveParsing, reverseArray } from "@/lib/utils"
 import { useState } from "react"
 import styles from './page.module.css'
 import { Computed } from "@/types/Computed"
+import { NonRecursivePredictiveParsingReturnType } from "@/types/NonRecursivePredictiveParsingReturnType"
 
 export default function Home() {
 
@@ -20,12 +21,15 @@ export default function Home() {
     console.log(followFunctionResult)
     let parsingTableResult = parsingTable(grammar, firstFunctionResult, followFunctionResult)
     console.log("parsingTableResult", parsingTableResult)
+    let nonRecursivePredictiveParsingResult = nonRecursivePredictiveParsing(grammar, "id+id*id$", parsingTableResult)
+    console.log("nonRecursivePredictiveParsingResult", nonRecursivePredictiveParsingResult)
 
     setComputed({
       grammar: grammar,
       first: firstFunctionResult,
       follow: followFunctionResult,
-      parsingTable: parsingTableResult
+      parsingTable: parsingTableResult,
+      nonRecursivePredictiveParsing: nonRecursivePredictiveParsingResult
     });
   }
 
@@ -130,6 +134,39 @@ export default function Home() {
                       </tr>
                     )
                   }
+                </tbody>
+
+              </table>
+
+            </div>
+          }
+
+          {
+            computed.nonRecursivePredictiveParsing != null &&
+            <div>
+              <span>Non-recursive Predictive Parsing</span>
+
+              <table>
+                <thead>
+                  <tr>
+                    {
+                      Object.keys(computed.nonRecursivePredictiveParsing).map((column, i) => <td key={"td_thead_nonRecursivePredictiveParsing_" + i}>{column}</td>)
+                    }
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {
+                    Object.keys(computed.nonRecursivePredictiveParsing[Object.keys(computed.nonRecursivePredictiveParsing)[0] as keyof NonRecursivePredictiveParsingReturnType]).map((number, i) =>
+                      <tr key={"td_tbody_nonRecursivePredictiveParsing_" + i}>
+                        <td>{computed.nonRecursivePredictiveParsing != null && computed.nonRecursivePredictiveParsing.matched[Number(number)]}</td>
+                        <td>{computed.nonRecursivePredictiveParsing != null && reverseArray(computed.nonRecursivePredictiveParsing.stack[Number(number)])}</td>
+                        <td>{computed.nonRecursivePredictiveParsing != null && computed.nonRecursivePredictiveParsing.input[Number(number)]}</td>
+                        <td>{computed.nonRecursivePredictiveParsing != null && computed.nonRecursivePredictiveParsing.output[Number(number)]}</td>
+                      </tr>
+                    )
+                  }
+
                 </tbody>
 
               </table>

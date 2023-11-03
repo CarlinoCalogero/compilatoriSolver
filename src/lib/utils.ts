@@ -1,12 +1,15 @@
 import { CheckSymbolFunctionReturnType } from "@/types/CheckSymbolFunctionReturnType";
 import { CheckSymbolGivenGrammarReturnType } from "@/types/CheckSymbolGivenGrammarReturnType";
 import { Grammar } from "@/types/Grammar";
+import { NonRecursivePredictiveParsingReturnType } from "@/types/NonRecursivePredictiveParsingReturnType";
 import { RecognizeSymbolReturnType } from "@/types/RecognizeSymbolReturnType";
 import { TestType } from "@/types/TestType";
 
 const endOfInputSymbol = "$";
 const endOfStackSymbol = endOfInputSymbol;
 const epsilon = "e";
+const error = "Error";
+const accept = "accept"
 
 /**
  * used in parseInput() function, given a symbol in input this function figures out which kind of symbol it is
@@ -955,11 +958,16 @@ function putEntriesInsideEntries(inputGrammar: Grammar, linkedEntries: Record<st
 
 }
 
+/**
+ * computes the parsingTable
+ * @param inputGrammar 
+ * @param first 
+ * @param follow 
+ * @returns 
+ */
 export function parsingTable(inputGrammar: Grammar, first: Record<string, string[]>, follow: Record<string, string[]>) {
 
     let parsingTable: Record<string, Record<string, string[]>> = {}
-
-    let errorString = "Error";
 
     /** populate parsingTable */
     inputGrammar.nonTerminalSymbols.forEach(nonTerminalSymbol => {
@@ -970,11 +978,11 @@ export function parsingTable(inputGrammar: Grammar, first: Record<string, string
         // terminalSymbols are parsingTable's columns
         inputGrammar.terminalSymbols.forEach(terminalSymbol => {
             if (terminalSymbol != epsilon)
-                parsingTable[nonTerminalSymbol][terminalSymbol] = [errorString];
+                parsingTable[nonTerminalSymbol][terminalSymbol] = [error];
         });
 
         // other than terminalSymbols there is the special column of $
-        parsingTable[nonTerminalSymbol][endOfInputSymbol] = [errorString];
+        parsingTable[nonTerminalSymbol][endOfInputSymbol] = [error];
     });
 
     // console.log("parsingTable", JSON.parse(JSON.stringify(parsingTable)))
@@ -1036,8 +1044,15 @@ export function parsingTable(inputGrammar: Grammar, first: Record<string, string
 
 }
 
+/**
+ * used for the parsingTable every time an epsilon symbol is encountered
+ * @param parsingTable 
+ * @param follow 
+ * @param nonTerminalSymbol 
+ * @param tableEntry 
+ */
 function parsingTableWhenEncounteringEpsilon(parsingTable: Record<string, Record<string, string[]>>, follow: Record<string, string[]>, nonTerminalSymbol: string, tableEntry: string) {
-    
+
     // iterate over nonTerminalSymbol follow
     follow[nonTerminalSymbol].forEach(terminalSymbolInsideFollowFunction => {
         // console.log("terminalSymbolInsideFollowFunction", terminalSymbolInsideFollowFunction)
@@ -1051,15 +1066,151 @@ function parsingTableWhenEncounteringEpsilon(parsingTable: Record<string, Record
     });
 }
 
+/**
+ * adds entry to parsingTable at [row, column]
+ * @param parsingTable 
+ * @param row 
+ * @param column 
+ * @param tableEntry 
+ */
 function addEntryToParsingTable(parsingTable: Record<string, Record<string, string[]>>, row: string, column: string, tableEntry: string) {
 
-    let errorString = "Error";
-
-    // remove "Error"
-    let errorIndex = parsingTable[row][column].indexOf(errorString);
+    // remove error
+    let errorIndex = parsingTable[row][column].indexOf(error);
     if (errorIndex != -1)
         parsingTable[row][column].splice(errorIndex, 1)
 
     // add entry
     parsingTable[row][column].push(tableEntry);
+}
+
+/**
+ * computes nonRecursivePredictiveParsing
+ * @param inputGrammar 
+ * @param inputString 
+ * @param parsingTable 
+ * @returns 
+ */
+export function nonRecursivePredictiveParsing(inputGrammar: Grammar, inputString: string, parsingTable: Record<string, Record<string, string[]>>) {
+
+    let nonRecursivePredictiveParsingReturnType: NonRecursivePredictiveParsingReturnType = {
+        matched: {},
+        stack: {},
+        input: {},
+        output: {}
+    }
+
+    let stack: string[] = [endOfStackSymbol];
+
+    stack.push(inputGrammar.initialSymbol)
+
+    console.log("stack", [...stack])
+
+    let count = 0;
+    let lastMatchedString = "";
+    let isThereWasAMatch = false;
+    while (stack[stack.length - 1] != endOfStackSymbol) {
+
+        for (const property in nonRecursivePredictiveParsingReturnType) {
+            nonRecursivePredictiveParsingReturnType[property as keyof NonRecursivePredictiveParsingReturnType][count] = []
+        }
+
+        // save data
+        nonRecursivePredictiveParsingReturnType.stack[count] = [...stack];
+        nonRecursivePredictiveParsingReturnType.input[count] = [inputString];
+
+        // recognize input symbol
+        let responceInputString = recognizeSymbol(inputGrammar, inputString);
+
+        // get recognized symbol
+        let recognizedSymbol = inputString.substring(0, responceInputString.offset);
+
+        console.log("recognizedSymbol", recognizedSymbol)
+
+        // recognize top of stack
+        // stack[stack.length - 1] equals top of the stack
+        let responceTopOfStack = recognizeSymbol(inputGrammar, stack[stack.length - 1]);
+
+        console.log("topOfStack", stack[stack.length - 1])
+
+        if (stack[stack.length - 1] == recognizedSymbol) {
+            stack.pop();
+            inputString = inputString.substring(responceInputString.offset)
+            console.log("lastMatchedString", lastMatchedString)
+            lastMatchedString = lastMatchedString + recognizedSymbol;
+            isThereWasAMatch = true;
+            console.log("_lastMatchedString", lastMatchedString)
+            nonRecursivePredictiveParsingReturnType.matched[count].push(lastMatchedString)
+        } else if (responceTopOfStack.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
+            console.log("Error");
+        } else if (parsingTable[stack[stack.length - 1]][recognizedSymbol].toString() == error) {
+            console.log("Error");
+        } else {
+            let production = parsingTable[stack[stack.length - 1]][recognizedSymbol].toString();
+            let productionBody = production.substring(production.indexOf(">") + 1);
+            console.log("production", production, "\nproductionBody", productionBody)
+            nonRecursivePredictiveParsingReturnType.output[count].push(production);
+            stack.pop();
+
+            console.log("stack", [...stack])
+
+            let productionBodySymbols: string[] = []; // used to store production body Symbols
+            // iterate until productionBody is consumed
+            while (productionBody != "") {
+
+                console.log("\n_productionBody", productionBody, "productionBodySymbols", productionBodySymbols)
+
+                // recognize first production body symbol
+                let responceRecognizedProductionBody = recognizeSymbol(inputGrammar, productionBody);
+
+                // save first production body symbol
+                let recognizedProductionBodySymbol = productionBody.substring(0, responceRecognizedProductionBody.offset);
+                // put it on array but only if is not epsilon
+                if (recognizedProductionBodySymbol != epsilon)
+                    productionBodySymbols.push(recognizedProductionBodySymbol);
+
+                // remove recognized production body symbol from production body
+                productionBody = productionBody.substring(responceRecognizedProductionBody.offset);
+
+                console.log("\n_productionBody", productionBody, "recognizedProductionBodySymbol", recognizedProductionBodySymbol)
+
+            }
+
+            console.log("_productionBody", [...productionBodySymbols])
+
+            // push productionBody's symbols in the right order
+            for (let productionBodyCount = 0; productionBodyCount < productionBodySymbols.length; productionBodyCount++) {
+                stack.push(productionBodySymbols[productionBodySymbols.length - 1 - productionBodyCount]);
+            }
+
+            console.log("_stack", [...stack])
+        }
+
+        console.log("nonRecursivePredictiveParsingReturnType", JSON.parse(JSON.stringify(nonRecursivePredictiveParsingReturnType)))
+
+        if (!isThereWasAMatch) {
+            nonRecursivePredictiveParsingReturnType.matched[count].push(lastMatchedString)
+        }
+
+        count++;
+        isThereWasAMatch = false;
+    }
+
+    // save data
+    nonRecursivePredictiveParsingReturnType.matched[count] = [lastMatchedString]
+    nonRecursivePredictiveParsingReturnType.stack[count] = [...stack];
+    nonRecursivePredictiveParsingReturnType.input[count] = [inputString];
+    nonRecursivePredictiveParsingReturnType.output[count] = [accept]
+
+    return nonRecursivePredictiveParsingReturnType;
+}
+
+export function reverseArray(array: string[]) {
+
+    let arrayCopy = [...array];
+    arrayCopy.reverse()
+
+    console.log(array, arrayCopy)
+
+    return arrayCopy;
 }
