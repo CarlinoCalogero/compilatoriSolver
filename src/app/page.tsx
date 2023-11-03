@@ -24,7 +24,9 @@ export default function Home() {
     // let nonRecursivePredictiveParsingResult = nonRecursivePredictiveParsing(grammar, "id+id*id$", parsingTableResult)
     // console.log("nonRecursivePredictiveParsingResult", nonRecursivePredictiveParsingResult)
 
-    automaLR0(grammar)
+    let automaLR0FunctionResult = automaLR0(grammar);
+
+    console.log("automaLR0FunctionResult", automaLR0FunctionResult)
 
     setComputed({
       grammar: grammar,

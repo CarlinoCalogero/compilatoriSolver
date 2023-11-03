@@ -1,3 +1,4 @@
+import { AutomaLR0Row } from "@/types/AutomaLR0Row";
 import { CheckSymbolFunctionReturnType } from "@/types/CheckSymbolFunctionReturnType";
 import { CheckSymbolGivenGrammarReturnType } from "@/types/CheckSymbolGivenGrammarReturnType";
 import { Grammar } from "@/types/Grammar";
@@ -314,7 +315,7 @@ export function first(inputGrammar: Grammar) {
 
     /** add terminals to nonTerminals' First() */
     for (const nonTerminal in terminalsToBeAddedToNonTerminalsFirst) {
-        addArrayElementsInObjectAttribute(first, nonTerminal, terminalsToBeAddedToNonTerminalsFirst[nonTerminal])
+        addStringArrayElementsInObjectAttribute(first, nonTerminal, terminalsToBeAddedToNonTerminalsFirst[nonTerminal])
     }
 
     /** put First() inside First() */
@@ -365,7 +366,7 @@ function computeFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<str
                         // the previously found terminalSymbol to this newly found next nonTerminalSymbol's first()
                         if (responceForNextSymbol.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) {
                             let nonTerminalSymbol = productionBody.substring(0, responce.offset); // get nonTerminalSymbol
-                            addArrayElementsInObjectAttribute(terminalsToBeAddedToNonTerminalsFirst, nonTerminalSymbol, [terminalSymbol])
+                            addStringArrayElementsInObjectAttribute(terminalsToBeAddedToNonTerminalsFirst, nonTerminalSymbol, [terminalSymbol])
                         }
                     }
                 }
@@ -446,7 +447,7 @@ function checkSymbolGivenGrammar(inputGrammar: Grammar, symbol: string) {
  * @param inputArray
  * @returns inputArray without duplicates
  */
-function removeDuplicates(inputArray: string[]) {
+function removeDuplicates(inputArray: any[]) {
     return inputArray.filter((item, index) => inputArray.indexOf(item) === index);
 }
 
@@ -509,7 +510,7 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
     let linkedFollowEntries: Record<string, string[]> = {} // used to store the linked follow entries
 
     // initialSymbol has endOfInputSymbol in its follow
-    addArrayElementsInObjectAttribute(follow, inputGrammar.initialSymbol, [endOfInputSymbol]);
+    addStringArrayElementsInObjectAttribute(follow, inputGrammar.initialSymbol, [endOfInputSymbol]);
 
     // iterate all productions
     for (const nonTerminalSymbol in inputGrammar.productions) {
@@ -551,7 +552,7 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
                         // if the symbols next to recognized set of symbols is a terminal we add it to the followArray
                         if (symbolsNextToRecognizedSetOfSymbols.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
                             // console.log("_terminal", firstSetOfCharactersNextToRecognizedSetOfSymbols, "recognizedSetOfSymbols", recognizedSetOfSymbols)
-                            addArrayElementsInObjectAttribute(follow, recognizedSetOfSymbols, [firstSetOfCharactersNextToRecognizedSetOfSymbols]);
+                            addStringArrayElementsInObjectAttribute(follow, recognizedSetOfSymbols, [firstSetOfCharactersNextToRecognizedSetOfSymbols]);
                         }
 
                         // if the symbols next to recognized set of symbols is a nonTerminal symbol, everthing in 
@@ -560,7 +561,7 @@ export function follow(inputGrammar: Grammar, first: Record<string, string[]>) {
                         if (symbolsNextToRecognizedSetOfSymbols.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) {
 
                             // console.log("_nonTerminal", firstSetOfCharactersNextToRecognizedSetOfSymbols, "recognizedSetOfSymbols", recognizedSetOfSymbols)
-                            addArrayElementsInObjectAttribute(follow, recognizedSetOfSymbols, first[firstSetOfCharactersNextToRecognizedSetOfSymbols]);
+                            addStringArrayElementsInObjectAttribute(follow, recognizedSetOfSymbols, first[firstSetOfCharactersNextToRecognizedSetOfSymbols]);
 
                             // if the symbols next to recognized set of symbols is a nonTerminal symbol
                             // and this nonTerminal symbol has epsilon in its First()
@@ -642,7 +643,27 @@ function linkEntriesTogether(linkedEntries: Record<string, string[]>, sender: st
  * @param attribute 
  * @param array 
  */
-function addArrayElementsInObjectAttribute(object: Record<string, string[]>, attribute: string, array: string[]) {
+function addStringArrayElementsInObjectAttribute(object: Record<string, string[]>, attribute: string, array: string[]) {
+
+    // if there was not a record initialize it
+    if (!(attribute in object))
+        object[attribute] = []
+
+    // add elements to object attribute
+    object[attribute] = [...object[attribute], ...array];
+
+    // removes duplicates
+    object[attribute] = removeDuplicates(object[attribute]);
+
+}
+
+/**
+ * adds array elements to object at given attribute
+ * @param object 
+ * @param attribute 
+ * @param array 
+ */
+function addNumberArrayElementsInObjectAttribute(object: Record<string, number[]>, attribute: string, array: number[]) {
 
     // if there was not a record initialize it
     if (!(attribute in object))
@@ -925,7 +946,7 @@ function putEntriesInsideEntries(inputGrammar: Grammar, linkedEntries: Record<st
         for (const senderSymbol in linkedEntries) {
 
             linkedEntries[senderSymbol].forEach(receiverSymbol => {
-                addArrayElementsInObjectAttribute(firstOrFollow, receiverSymbol, firstOrFollow[senderSymbol]);
+                addStringArrayElementsInObjectAttribute(firstOrFollow, receiverSymbol, firstOrFollow[senderSymbol]);
             });
 
         }
@@ -1224,6 +1245,8 @@ function closure(inputGrammar: Grammar, inputItem: string, alreadyExploredNonTer
         notInKernel: []
     }
 
+    // console.log("inputItem", inputItem)
+
     // if inputItem is fake production or has not the . right after the >
     // this inputItem belongs to the kernel
     if ((inputItem == `${inputGrammar.initialSymbol}'=>${itemPointer}${inputGrammar.initialSymbol}`)
@@ -1307,7 +1330,7 @@ function goTo(inputGrammar: Grammar, inputItemSet: ItemSet, nonTerminalSymbol: s
         // console.log("recognizedSymbol", recognizedSymbol)
 
         // if recognizedSymbol equals the input nonTerminalSymbol
-        // advance the itemPointer nad put it inside the goTo ItemSet
+        // advance the itemPointer and put it inside the goTo ItemSet
         if (recognizedSymbol == nonTerminalSymbol) {
 
             // shift the . inside the item
@@ -1333,13 +1356,142 @@ function goTo(inputGrammar: Grammar, inputItemSet: ItemSet, nonTerminalSymbol: s
 
 export function automaLR0(inputGrammar: Grammar) {
 
-    let newGrammar: Grammar = JSON.parse(JSON.stringify(inputGrammar));
+    let automaLR0Table: AutomaLR0Row[] = [];
 
+    let newGrammar: Grammar = JSON.parse(JSON.stringify(inputGrammar)); // copy inputGrammar
+
+    // add new fake production to the grammar
     let newFakeInitialSymbol = `${inputGrammar.initialSymbol}'`
     newGrammar.initialSymbol = newFakeInitialSymbol;
     newGrammar.nonTerminalSymbols.push(newFakeInitialSymbol);
     newGrammar.productions[newFakeInitialSymbol] = [inputGrammar.initialSymbol]
 
-    console.log("newGrammar", JSON.parse(JSON.stringify(newGrammar)));
+    // console.log("newGrammar", JSON.parse(JSON.stringify(newGrammar)));
+
+    let closureReturnItemSet = closure(inputGrammar, `${newFakeInitialSymbol}=>${itemPointer}${inputGrammar.initialSymbol}`);
+
+    // console.log("closureReturnItemSet", JSON.parse(JSON.stringify(closureReturnItemSet)));
+
+    // get all grammar's symbols
+    let grammarTerminalAndNotTerminalsArray: string[] = [...inputGrammar.nonTerminalSymbols, ...inputGrammar.terminalSymbols]
+
+    // remove epsilon if the grammar has it as a symbol
+    let epsilonIndexOfInsideArray = grammarTerminalAndNotTerminalsArray.indexOf(epsilon);
+    if (epsilonIndexOfInsideArray != -1) {
+        grammarTerminalAndNotTerminalsArray.splice(epsilonIndexOfInsideArray, 1);
+    }
+
+    let tableRowNumber = 0; // used to count the rows of the table
+
+    const currentRow = computeAutomaLR0NewRow(grammarTerminalAndNotTerminalsArray, tableRowNumber, closureReturnItemSet)
+
+    // console.log("currentRow", JSON.parse(JSON.stringify(currentRow)));
+
+    // push the row inside the automaLR0Table
+    automaLR0Table.push(currentRow);
+
+    for (let currentTableRow = 0; currentTableRow < automaLR0Table.length; currentTableRow++) {
+
+        // console.log("currentTableRow", JSON.parse(JSON.stringify(automaLR0Table[currentTableRow])));
+
+        // get currentItemSet
+        const currentItemSet = automaLR0Table[currentTableRow].itemSet;
+
+        const currentItemSetAllItemsArray = [...currentItemSet.kernel, ...currentItemSet.notInKernel]
+
+        currentItemSetAllItemsArray.forEach(item => {
+
+            // console.log("item", item)
+
+            // get position of . inside item
+            let indexOfItemPointerInItem = item.indexOf(itemPointer);
+
+            // get all that's after the .
+            let itemBodyAfterItemPointer = item.substring(indexOfItemPointerInItem + 1)
+
+            // console.log("itemBodyAfterItemPointer", itemBodyAfterItemPointer)
+
+            // recognize symbol
+            const responce = recognizeSymbol(inputGrammar, itemBodyAfterItemPointer);
+
+            // get recognizedSymbol
+            const recognizedSymbol = itemBodyAfterItemPointer.substring(0, responce.offset);
+
+            // console.log("_recognizedSymbol", recognizedSymbol)
+
+            // if recognizedSymbol is empty string do nothing
+            if (recognizedSymbol != '') {
+
+                // call the goTo() function
+                let goToReturnItemSet = goTo(inputGrammar, currentItemSet, recognizedSymbol);
+
+                // console.log("goToReturnItemSet", JSON.parse(JSON.stringify(goToReturnItemSet)));
+
+                // get all itemSet items
+                const getGoToReturnItems = [...goToReturnItemSet.kernel, ...goToReturnItemSet.notInKernel];
+
+                if (getGoToReturnItems.length != 0) {
+
+                    let itemSetIsAlreadyInsideTheAutomaLR0Table = false;
+
+                    let automaLR0TableCounterForRows = 0;
+                    while (!itemSetIsAlreadyInsideTheAutomaLR0Table && automaLR0TableCounterForRows < automaLR0Table.length) {
+
+                        // get current table row
+                        const currentAutomaLR0TableRow = automaLR0Table[automaLR0TableCounterForRows];
+
+                        // get all items of this table row
+                        const currentAutomaLR0TableRowItems = [...currentAutomaLR0TableRow.itemSet.kernel, ...currentAutomaLR0TableRow.itemSet.notInKernel];
+
+                        itemSetIsAlreadyInsideTheAutomaLR0Table = checkIfArraysAreTheSame(getGoToReturnItems, currentAutomaLR0TableRowItems);
+
+                        if (!itemSetIsAlreadyInsideTheAutomaLR0Table) { // if itemSetIsAlreadyInsideTheAutomaLR0Table is true there is already a row inside the table with the itemSet
+                            automaLR0TableCounterForRows++;
+                        }
+                    }
+
+                    if (itemSetIsAlreadyInsideTheAutomaLR0Table) {
+                        // if true there is already a row inside the table with the itemSet
+                        // so we add the index of this particular row in the
+                        // corresponding current row column
+                        addNumberArrayElementsInObjectAttribute(automaLR0Table[currentTableRow].otherColumns, recognizedSymbol, [automaLR0TableCounterForRows])
+                    } else {
+                        // if false there is not a row inside the table with the itemSet
+                        // so we add this row to the table
+                        tableRowNumber++;
+                        const newRow = computeAutomaLR0NewRow(grammarTerminalAndNotTerminalsArray, tableRowNumber, goToReturnItemSet);
+                        automaLR0Table.push(newRow);
+                        // console.log("newTableRow", JSON.parse(JSON.stringify(newRow)));
+                        // and add the index of this new row in the
+                        // corresponding current row column
+                        automaLR0Table[currentTableRow].otherColumns[recognizedSymbol].push(automaLR0TableCounterForRows)
+                        // console.log("automaLR0Table", JSON.parse(JSON.stringify(automaLR0Table)));
+                    }
+                }
+
+            }
+
+        });
+
+    }
+
+    return automaLR0Table;
+
+}
+
+function computeAutomaLR0NewRow(grammarTerminalAndNotTerminalsArray: string[], tableRowNumber: number, itemSet: ItemSet) {
+
+    let newRow: AutomaLR0Row = {
+        rowNumber: tableRowNumber,
+        itemSet: itemSet,
+        otherColumns: {}
+    }
+
+    grammarTerminalAndNotTerminalsArray.forEach(symbol => {
+        // compute first row of AutomaLR0Table
+        newRow.otherColumns[symbol] = []
+    });
+
+    return newRow;
 
 }
