@@ -1,6 +1,6 @@
 'use client'
 
-import { parseInput, first, follow, test, parsingTable, nonRecursivePredictiveParsing, reverseArray, automaLR0 } from "@/lib/utils"
+import { parseInput, first, follow, test, parsingTable, nonRecursivePredictiveParsing, reverseArray, automaLR0, getArrayItemsAsStringWithNewLinesInsteadOfCommas } from "@/lib/utils"
 import { useState } from "react"
 import styles from './page.module.css'
 import { Computed } from "@/types/Computed"
@@ -23,9 +23,7 @@ export default function Home() {
     console.log("parsingTableResult", parsingTableResult)
     // let nonRecursivePredictiveParsingResult = nonRecursivePredictiveParsing(grammar, "id+id*id$", parsingTableResult)
     // console.log("nonRecursivePredictiveParsingResult", nonRecursivePredictiveParsingResult)
-
     let automaLR0FunctionResult = automaLR0(grammar);
-
     console.log("automaLR0FunctionResult", automaLR0FunctionResult)
 
     setComputed({
@@ -33,7 +31,8 @@ export default function Home() {
       first: firstFunctionResult,
       follow: followFunctionResult,
       parsingTable: parsingTableResult,
-      nonRecursivePredictiveParsing: null
+      nonRecursivePredictiveParsing: null,
+      automaLR0: automaLR0FunctionResult
     });
   }
 
@@ -171,6 +170,44 @@ export default function Home() {
                     )
                   }
 
+                </tbody>
+
+              </table>
+
+            </div>
+          }
+
+          {
+            computed.automaLR0 != null &&
+            <div>
+              <span>AutomaLR0</span>
+
+              <table>
+
+                <thead>
+                  <tr>
+                    <td>I</td>
+                    <td>Item Set</td>
+                    {
+                      Object.keys(computed.automaLR0[0].otherColumns).map((column, i) => <td key={"td_thead_automaLR0_" + i}>{column}</td>)
+                    }
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {
+                    computed.automaLR0.map((automaLR0Row, i) =>
+                      <tr key={"td_tbody_automaLR0_" + i}>
+                        <td >{`I${automaLR0Row.rowNumber}`}</td>
+                        <td style={{ whiteSpace: "pre-wrap", wordWrap: "break-word" }}>{`Kernel:\n[${getArrayItemsAsStringWithNewLinesInsteadOfCommas(automaLR0Row.itemSet.kernel)}]${automaLR0Row.itemSet.notInKernel.length != 0 ? `\n\nNotInKernel:\n[${getArrayItemsAsStringWithNewLinesInsteadOfCommas(automaLR0Row.itemSet.notInKernel)}]` : ""}`}</td>
+                        {
+                          Object.keys(automaLR0Row.otherColumns).map((column, j) =>
+                            <td key={"td_tbody_automaLR0_" + i + "_" + j}>{automaLR0Row.otherColumns[column].length != 0 ? `I${automaLR0Row.otherColumns[column]}` : '-'}</td>
+                          )
+                        }
+                      </tr>
+                    )
+                  }
                 </tbody>
 
               </table>

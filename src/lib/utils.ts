@@ -1228,6 +1228,11 @@ export function nonRecursivePredictiveParsing(inputGrammar: Grammar, inputString
     return nonRecursivePredictiveParsingReturnType;
 }
 
+/**
+ * reverses the inputArray
+ * @param array 
+ * @returns 
+ */
 export function reverseArray(array: string[]) {
 
     let arrayCopy = [...array];
@@ -1238,6 +1243,13 @@ export function reverseArray(array: string[]) {
     return arrayCopy;
 }
 
+/**
+ * computes the closure() function
+ * @param inputGrammar 
+ * @param inputItem 
+ * @param alreadyExploredNonTerminalSymbols 
+ * @returns 
+ */
 function closure(inputGrammar: Grammar, inputItem: string, alreadyExploredNonTerminalSymbols: string[] = []) {
 
     let itemSet: ItemSet = {
@@ -1301,6 +1313,13 @@ function closure(inputGrammar: Grammar, inputItem: string, alreadyExploredNonTer
     return itemSet;
 }
 
+/**
+ * computes the goTo() function
+ * @param inputGrammar 
+ * @param inputItemSet 
+ * @param nonTerminalSymbol 
+ * @returns 
+ */
 function goTo(inputGrammar: Grammar, inputItemSet: ItemSet, nonTerminalSymbol: string) {
 
     let itemSet: ItemSet = {
@@ -1354,6 +1373,11 @@ function goTo(inputGrammar: Grammar, inputItemSet: ItemSet, nonTerminalSymbol: s
 
 }
 
+/**
+ * computes the automaLR0 table
+ * @param inputGrammar 
+ * @returns 
+ */
 export function automaLR0(inputGrammar: Grammar) {
 
     let automaLR0Table: AutomaLR0Row[] = [];
@@ -1479,6 +1503,13 @@ export function automaLR0(inputGrammar: Grammar) {
 
 }
 
+/**
+ * computes a new row for the automaLR0 table
+ * @param grammarTerminalAndNotTerminalsArray 
+ * @param tableRowNumber 
+ * @param itemSet 
+ * @returns 
+ */
 function computeAutomaLR0NewRow(grammarTerminalAndNotTerminalsArray: string[], tableRowNumber: number, itemSet: ItemSet) {
 
     let newRow: AutomaLR0Row = {
@@ -1493,5 +1524,17 @@ function computeAutomaLR0NewRow(grammarTerminalAndNotTerminalsArray: string[], t
     });
 
     return newRow;
+
+}
+
+/**
+ * return array elements as string but with \n instead of commas
+ * between one element and the other
+ * @param array 
+ * @returns 
+ */
+export function getArrayItemsAsStringWithNewLinesInsteadOfCommas(array: string[]) {
+
+    return array.toString().replaceAll(',',"\n");
 
 }
