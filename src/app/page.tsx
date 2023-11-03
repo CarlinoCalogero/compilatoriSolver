@@ -5,44 +5,102 @@ import { useState } from "react"
 import styles from './page.module.css'
 import { Computed } from "@/types/Computed"
 import { NonRecursivePredictiveParsingReturnType } from "@/types/NonRecursivePredictiveParsingReturnType"
+import Error from "next/error"
 
 export default function Home() {
 
-  const [input, setInput] = useState('')
+  const [inputGrammar, setInputGrammar] = useState('')
+  const [inputString, setInputString] = useState('')
   const [computed, setComputed] = useState<Computed | null>(null)
 
   function compute() {
 
-    let grammar = parseInput(input);
-    console.log(grammar)
-    let firstFunctionResult = first(grammar);
-    console.log(firstFunctionResult)
-    let followFunctionResult = follow(grammar, firstFunctionResult);
-    console.log(followFunctionResult)
-    let parsingTableResult = parsingTable(grammar, firstFunctionResult, followFunctionResult)
-    console.log("parsingTableResult", parsingTableResult)
-    // let nonRecursivePredictiveParsingResult = nonRecursivePredictiveParsing(grammar, "id+id*id$", parsingTableResult)
-    // console.log("nonRecursivePredictiveParsingResult", nonRecursivePredictiveParsingResult)
-    let automaLR0FunctionResult = automaLR0(grammar);
-    console.log("automaLR0FunctionResult", automaLR0FunctionResult)
-
-    setComputed({
-      grammar: grammar,
-      first: firstFunctionResult,
-      follow: followFunctionResult,
-      parsingTable: parsingTableResult,
+    let newComputed: Computed = {
+      grammar: null,
+      first: null,
+      follow: null,
+      parsingTable: null,
       nonRecursivePredictiveParsing: null,
-      automaLR0: automaLR0FunctionResult
-    });
+      automaLR0: null
+    }
+
+    try {
+      if (inputGrammar.length != 0)
+        newComputed.grammar = parseInput(inputGrammar);
+    } catch (error) {
+      console.log("Problem is grammar parsing")
+      console.error(error)
+    }
+
+    try {
+      if (newComputed.grammar != null)
+        newComputed.first = first(newComputed.grammar);
+    } catch (error) {
+      console.log("Problem is first() function")
+      console.error(error)
+    }
+
+    try {
+      if (newComputed.grammar != null && newComputed.first != null)
+        newComputed.follow = follow(newComputed.grammar, newComputed.first)
+    } catch (error) {
+      console.log("Problem is follow() function")
+      console.error(error)
+    }
+
+    try {
+      if (newComputed.grammar != null && newComputed.first != null && newComputed.follow != null)
+        newComputed.parsingTable = parsingTable(newComputed.grammar, newComputed.first, newComputed.follow)
+    } catch (error) {
+      console.log("Problem is parsingTable")
+      console.error(error)
+    }
+
+    try {
+      if (inputString.length != 0 && newComputed.grammar != null && newComputed.parsingTable != null)
+        newComputed.nonRecursivePredictiveParsing = nonRecursivePredictiveParsing(newComputed.grammar, inputString, newComputed.parsingTable)
+    } catch (error) {
+      console.log("Problem is nonRecursivePredictiveParsingResult")
+      console.error(error)
+    }
+
+    try {
+      if (newComputed.grammar != null)
+        newComputed.automaLR0 = automaLR0(newComputed.grammar);
+      // console.log("automaLR0FunctionResult", automaLR0FunctionResult)
+    } catch (error) {
+      console.log("Problem is automaLR0")
+      console.error(error)
+    }
+
+
+    setComputed(newComputed);
   }
 
   return (
     <div className={styles.outerDiv}>
 
-      <textarea onChange={e => setInput(e.target.value)} />
+      <div className={styles.explainationDiv}>
+        <h1>Example of grammar:</h1>
+        <div className={styles.exampleGrammarDiv}>
+          <span>{"E=>TE'"}</span>
+          <span>{"E'=>+TE'|e"}</span>
+          <span>{"T=>FT'"}</span>
+          <span>{"T'=>*FT'|e"}</span>
+          <span>{"F=>(E)|id"}</span>
+        </div>
+        <span>Where epsilon is "e"</span>
+      </div>
+
+
+      <textarea placeholder="InputGrammar" onChange={e => setInputGrammar(e.target.value)} />
+      <input placeholder="Input string" type="text" onChange={e => setInputString(e.target.value)} />
 
       <button onClick={compute}>Compute</button>
-      <button onClick={test}>Test</button>
+      {
+        false &&
+        <button onClick={test}>Test</button>
+      }
 
       {
         computed != null &&

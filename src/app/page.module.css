@@ -22,3 +22,15 @@
     flex-direction: column;
     gap: 3rem;
 }
+
+.explainationDiv{
+    display: flex;
+    flex-direction: column;
+}
+
+.exampleGrammarDiv{
+    display: flex;
+    flex-direction: column;
+    margin-left: 40%;
+    margin-bottom: 2rem;
+}
