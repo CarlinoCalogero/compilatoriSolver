@@ -305,6 +305,8 @@ export function first(inputGrammar: Grammar) {
         first[nonTerminalSymbol] = computeFirstEntry(inputGrammar, linkedFirstEntries, pendingProductionBody, nonTerminalSymbol);
     }
 
+    // console.log("first first()", JSON.parse(JSON.stringify(first)));
+
     for (const terminalSymbol in inputGrammar.terminalSymbols) {
         let currentTerminal = inputGrammar.terminalSymbols[terminalSymbol]; // get currentTerminal symbol
         // if currentTerminal symbol is epsilon skip it
@@ -313,9 +315,9 @@ export function first(inputGrammar: Grammar) {
             first[currentTerminal] = [currentTerminal];
     }
 
-    // console.log("linkedFirstEntries", JSON.parse(JSON.stringify(linkedFirstEntries)));
+    // console.log("linkedFirstEntries", JSON.parse(JSON.stringify(linkedFirstEntries)), "\nfirst", JSON.parse(JSON.stringify(first)));
     /** put First() inside First() */
-    putEntriesInsideEntries(inputGrammar, linkedFirstEntries, first);
+    putEntriesInsideEntries(inputGrammar, linkedFirstEntries, first, true);
 
     // console.log("first", JSON.parse(JSON.stringify(first)), "\npendingProductionBody", JSON.parse(JSON.stringify(pendingProductionBody)))
     /** finally handles productions bodies where its first symbol equals the productionHead (e.g. E=>E+Ab) */
@@ -331,9 +333,12 @@ export function first(inputGrammar: Grammar) {
         });
 
     }
+    // console.log("first after pendingProductionBody", JSON.parse(JSON.stringify(first)), "\nlinkedFirstEntries", JSON.parse(JSON.stringify(linkedFirstEntries)))
 
     /** put First() inside First() again because we may have updated something*/
-    putEntriesInsideEntries(inputGrammar, linkedFirstEntries, first);
+    putEntriesInsideEntries(inputGrammar, linkedFirstEntries, first, true);
+
+    // console.log("_first", JSON.parse(JSON.stringify(first)))
 
     return first;
 
@@ -359,6 +364,8 @@ function computeFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<str
 
     });
 
+    // console.log("firstRoughArray", [...firstRoughArray])
+
     // removes duplicates
     return removeDuplicates(firstRoughArray);
 
@@ -380,6 +387,7 @@ function getFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<string,
     // considered set of symbols is a terminalSymbol
     if (responce.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
         // add terminalSymbol to first()
+        // console.log("productionHead", productionHead, "\npreviouslyRecognizedSymbol", previouslyRecognizedSymbol)
         return [previouslyRecognizedSymbol];
     }
 
@@ -447,9 +455,10 @@ function handleFirstTerminalSymbolInsideBody(inputGrammar: Grammar, linkedFirstE
 
                 // console.log("nonTerminalSymbol", recognizedSymbol, "nonTerminalSymbolFirst", [...nonTerminalSymbolFirst])
 
-                // if nonTerminal symbol first() does non have epsilon return nothing
-                if (nonTerminalSymbolFirst.includes(epsilon)) {
-                    // if epsilon we have to to link the first() togethere because nonTerminal symbol may have
+                if (nonTerminalSymbolFirst.includes(epsilon) && productionHead != recognizedSymbol) {
+                    // if nonTerminal symbol first() has epsilon 
+                    // and productionHead is not equal to recognizedSymbol
+                    // we have to to link the first() togethere because nonTerminal symbol may have
                     // other terminals besides epsilon in its first
                     // console.log("sender", recognizedSymbol, "receiver", productionHead)
                     addStringArrayElementsInObjectAttribute(linkedFirstEntries, recognizedSymbol, [productionHead])
@@ -712,6 +721,40 @@ function addStringArrayElementsInObjectAttribute(object: Record<string, string[]
 
     // add elements to object attribute
     object[attribute] = [...object[attribute], ...array];
+
+    // removes duplicates
+    object[attribute] = removeDuplicates(object[attribute]);
+
+}
+
+/**
+ * adds only certain elements to object at given attribute
+ * @param object 
+ * @param attribute 
+ * @param array 
+ */
+function addStringArrayElementsInObjectAttributeExceptForSpecifiedElements(object: Record<string, string[]>, attribute: string, array: string[], elementsToBeAvoided: string[]) {
+
+    let inputArrayCopy = [...array];
+
+    // remove elements
+    elementsToBeAvoided.forEach(toBeAvoidedElement => {
+
+        // get toBeAvoidedElement index
+        let toBeAvoidedElementIndex = inputArrayCopy.indexOf(toBeAvoidedElement);
+
+        if (toBeAvoidedElementIndex != -1) { // remove element only if it does exist
+            inputArrayCopy.splice(toBeAvoidedElementIndex, 1)
+        }
+
+    });
+
+    // if there was not a record initialize it
+    if (!(attribute in object))
+        object[attribute] = []
+
+    // add elements to object attribute
+    object[attribute] = [...object[attribute], ...inputArrayCopy];
 
     // removes duplicates
     object[attribute] = removeDuplicates(object[attribute]);
@@ -994,7 +1037,7 @@ function checkIfObjectIsEqualToSourceObject(sourceObject: Record<string, string[
  * @param linkedEntries 
  * @param firstOrFollow 
  */
-function putEntriesInsideEntries(inputGrammar: Grammar, linkedEntries: Record<string, string[]>, firstOrFollow: Record<string, string[]>) {
+function putEntriesInsideEntries(inputGrammar: Grammar, linkedEntries: Record<string, string[]>, firstOrFollow: Record<string, string[]>, avoidEpsilon: boolean = false) {
 
     let isWereElementsAddedToAFollow: boolean = true;
     // iterate until no more elements are added inside a first/follow
@@ -1007,7 +1050,11 @@ function putEntriesInsideEntries(inputGrammar: Grammar, linkedEntries: Record<st
         for (const senderSymbol in linkedEntries) {
 
             linkedEntries[senderSymbol].forEach(receiverSymbol => {
-                addStringArrayElementsInObjectAttribute(firstOrFollow, receiverSymbol, firstOrFollow[senderSymbol]);
+                if (avoidEpsilon) {
+                    addStringArrayElementsInObjectAttributeExceptForSpecifiedElements(firstOrFollow, receiverSymbol, firstOrFollow[senderSymbol], [epsilon])
+                } else {
+                    addStringArrayElementsInObjectAttribute(firstOrFollow, receiverSymbol, firstOrFollow[senderSymbol]);
+                }
             });
 
         }
