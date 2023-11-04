@@ -98,7 +98,7 @@ export default function Home() {
 
       <button onClick={compute}>Compute</button>
       {
-        false &&
+        true &&
         <button onClick={test}>Test</button>
       }
 

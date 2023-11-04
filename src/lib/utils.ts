@@ -298,11 +298,11 @@ export function first(inputGrammar: Grammar) {
 
     let first: Record<string, string[]> = {};
     let linkedFirstEntries: Record<string, string[]> = {} // used to store the linked first entries
-    let terminalsToBeAddedToNonTerminalsFirst: Record<string, string[]> = {} // used to store terminalSymbols that are to be added to nonTerminalSymbols first()
+    let pendingProductionBody: Record<string, string[]> = {}; // used to store productionBody that have the first symbol equals to productionHead (e.g. E=>E+A)
 
     for (const nonTerminalSymbol in inputGrammar.productions) {
         // call function on nonTerminalSymbol
-        first[nonTerminalSymbol] = computeFirstEntry(inputGrammar, linkedFirstEntries, terminalsToBeAddedToNonTerminalsFirst, nonTerminalSymbol);
+        first[nonTerminalSymbol] = computeFirstEntry(inputGrammar, linkedFirstEntries, pendingProductionBody, nonTerminalSymbol);
     }
 
     for (const terminalSymbol in inputGrammar.terminalSymbols) {
@@ -313,15 +313,27 @@ export function first(inputGrammar: Grammar) {
             first[currentTerminal] = [currentTerminal];
     }
 
-    /** add terminals to nonTerminals' First() */
-    for (const nonTerminal in terminalsToBeAddedToNonTerminalsFirst) {
-        addStringArrayElementsInObjectAttribute(first, nonTerminal, terminalsToBeAddedToNonTerminalsFirst[nonTerminal])
-    }
-
+    // console.log("linkedFirstEntries", JSON.parse(JSON.stringify(linkedFirstEntries)));
     /** put First() inside First() */
     putEntriesInsideEntries(inputGrammar, linkedFirstEntries, first);
 
-    // console.log("linkedFirstEntries", linkedFirstEntries)
+    // console.log("first", JSON.parse(JSON.stringify(first)), "\npendingProductionBody", JSON.parse(JSON.stringify(pendingProductionBody)))
+    /** finally handles productions bodies where its first symbol equals the productionHead (e.g. E=>E+Ab) */
+    // iterate over the productionHeads
+    for (const productionHead in pendingProductionBody) {
+
+        // iterate over each body
+        pendingProductionBody[productionHead].forEach(productionBody => {
+
+            // console.log("_productionBody", productionBody);
+            // add the new elements to the first()
+            first[productionHead] = [...first[productionHead], ...handleFirstTerminalSymbolInsideBody(inputGrammar, linkedFirstEntries, null, first, productionHead, productionBody)]
+        });
+
+    }
+
+    /** put First() inside First() again because we may have updated something*/
+    putEntriesInsideEntries(inputGrammar, linkedFirstEntries, first);
 
     return first;
 
@@ -333,7 +345,7 @@ export function first(inputGrammar: Grammar) {
  * @param nonTerminalSymbol 
  * @returns 
  */
-function computeFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<string, string[]>, terminalsToBeAddedToNonTerminalsFirst: Record<string, string[]>, nonTerminalSymbol: string) {
+function computeFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<string, string[]>, pendingProductionBody: Record<string, string[]>, nonTerminalSymbol: string) {
 
     let firstRoughArray: string[] = [];
 
@@ -343,35 +355,7 @@ function computeFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<str
         let responce = recognizeSymbol(inputGrammar, productionBody);
         // console.log("productionBody", productionBody)
         // call the first() function of head with current productionBody
-        firstRoughArray = [...firstRoughArray, ...getFirstEntry(inputGrammar, linkedFirstEntries, terminalsToBeAddedToNonTerminalsFirst, nonTerminalSymbol, productionBody, responce)];
-
-        do {
-            // get remaining production body
-            productionBody = productionBody.substring(responce.offset, productionBody.length);
-            /** now check if in productionBody there are terminalSymbols before nonTerminalSymbols */
-            if (productionBody.length != 0) { // if productionBody equals '' do nothing
-                // console.log("_productionBody", productionBody)
-                // recognize next symbol
-                responce = recognizeSymbol(inputGrammar, productionBody);
-                // if recognized symbol is a terminal check if next symbol is a nonTerminalSymbol
-                if (responce.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
-                    let terminalSymbol = productionBody.substring(0, responce.offset); // save terminalSymbol
-                    // get remaining production body
-                    productionBody = productionBody.substring(responce.offset, productionBody.length);
-                    if (productionBody.length != 0) { // if new productionBody equals '' do nothing
-                        // console.log("terminalSymbol", terminalSymbol, "productionBody", productionBody)
-                        // recognize symbol
-                        let responceForNextSymbol = recognizeSymbol(inputGrammar, productionBody);
-                        // if next symbol is nonTerminal we add 
-                        // the previously found terminalSymbol to this newly found next nonTerminalSymbol's first()
-                        if (responceForNextSymbol.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) {
-                            let nonTerminalSymbol = productionBody.substring(0, responce.offset); // get nonTerminalSymbol
-                            addStringArrayElementsInObjectAttribute(terminalsToBeAddedToNonTerminalsFirst, nonTerminalSymbol, [terminalSymbol])
-                        }
-                    }
-                }
-            }
-        } while (productionBody.length != 0)
+        firstRoughArray = [...firstRoughArray, ...getFirstEntry(inputGrammar, linkedFirstEntries, pendingProductionBody, nonTerminalSymbol, productionBody, responce)];
 
     });
 
@@ -386,25 +370,102 @@ function computeFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<str
  * @param productionBody 
  * @returns 
  */
-function getFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<string, string[]>, terminalsToBeAddedToNonTerminalsFirst: Record<string, string[]>, productionHead: string, productionBody: string, responce: RecognizeSymbolReturnType) {
+function getFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<string, string[]>, pendingProductionBody: Record<string, string[]>, productionHead: string, productionBody: string, responce: RecognizeSymbolReturnType) {
 
-    if (responce.checkSymbolGivenGrammarReturnType.isTerminalSymbol) { // considered set of symbols is a terminalSymbol
-        return [productionBody.substring(0, responce.offset)];
+    // console.log("productionBody", productionBody)
+
+    // get recognized symbol
+    let previouslyRecognizedSymbol = productionBody.substring(0, responce.offset);
+
+    // considered set of symbols is a terminalSymbol
+    if (responce.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
+        // add terminalSymbol to first()
+        return [previouslyRecognizedSymbol];
     }
 
-    if (responce.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol && productionHead == productionBody.substring(0, responce.offset)) { // handles if nonTerminalSymbol is equal to productionHead
+    // handles if nonTerminalSymbol is equal to productionHead
+    if (responce.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol && productionHead == previouslyRecognizedSymbol) {
+        // save that there is a production where the first symbol of the productionBody is equal to the productionHead
+        addStringArrayElementsInObjectAttribute(pendingProductionBody, productionHead, [productionBody])
         return []
     }
 
+    /** handles X=>Y1...YN (point 2 of the algorithm) */
     if (responce.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) { // considered set of symbols is a nonTerminalSymbol
-        // compute first() function of this nonTerminalSymbol (e.g. T => FE, we were computing first() function of T but now we compute first() function of F)
-        linkEntriesTogether(linkedFirstEntries, productionBody.substring(0, responce.offset), productionHead)
-        return computeFirstEntry(inputGrammar, linkedFirstEntries, terminalsToBeAddedToNonTerminalsFirst, productionBody.substring(0, responce.offset));
+        return handleFirstTerminalSymbolInsideBody(inputGrammar, linkedFirstEntries, pendingProductionBody, null, productionHead, productionBody)
     }
 
     // responce.isError
     // considered set of symbols is a neither a terminalSymbol nor nonTerminalSymbol -> this equals to Error
     console.log("Error")
+    return []
+
+}
+
+/**
+ * handles X=>Y1...YN (point 2 of the algorithm)
+ * @param inputGrammar 
+ * @param linkedFirstEntries 
+ * @param pendingProductionBody 
+ * @param first 
+ * @param productionHead 
+ * @param productionBody 
+ * @returns 
+ */
+function handleFirstTerminalSymbolInsideBody(inputGrammar: Grammar, linkedFirstEntries: Record<string, string[]>, pendingProductionBody: Record<string, string[]> | null = null, first: Record<string, string[]> | null = null, productionHead: string, productionBody: string) {
+
+    /** iterates until there is a terminal symbol or there is a nonTerminalSymbol that does not have epsilon in its first() */
+    do {
+
+        // console.log("remainingProductionBody", productionBody)
+
+        /** now check if in productionBody there are terminalSymbols before nonTerminalSymbols */
+        if (productionBody.length != 0) { // if productionBody equals '' do nothing
+
+            // recognize next symbol
+            let responce = recognizeSymbol(inputGrammar, productionBody);
+
+            // get recognized symbol
+            let recognizedSymbol = productionBody.substring(0, responce.offset);
+
+            // console.log("recognizedSymbol", recognizedSymbol)
+
+            // recognized symbol is a terminal
+            if (responce.checkSymbolGivenGrammarReturnType.isTerminalSymbol) {
+
+                return [recognizedSymbol] // add terminalSymbol to first()
+
+            } else if (responce.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) { // recognized symbol is a nonTerminal
+
+                // get recognized nonTerminal symbol first()
+                let nonTerminalSymbolFirst: string[] = [];
+                if (first == null && pendingProductionBody != null) {
+                    nonTerminalSymbolFirst = computeFirstEntry(inputGrammar, linkedFirstEntries, pendingProductionBody, recognizedSymbol);
+                } else if (first != null) {
+                    nonTerminalSymbolFirst = [...first[recognizedSymbol]]
+                }
+
+                // console.log("nonTerminalSymbol", recognizedSymbol, "nonTerminalSymbolFirst", [...nonTerminalSymbolFirst])
+
+                // if nonTerminal symbol first() does non have epsilon return nothing
+                if (nonTerminalSymbolFirst.includes(epsilon)) {
+                    // if epsilon we have to to link the first() togethere because nonTerminal symbol may have
+                    // other terminals besides epsilon in its first
+                    // console.log("sender", recognizedSymbol, "receiver", productionHead)
+                    addStringArrayElementsInObjectAttribute(linkedFirstEntries, recognizedSymbol, [productionHead])
+                } else {
+                    // if is not epsilon that means that we have to add the 
+                    // first() of the recognizedSymbol to the first()
+                    return [...nonTerminalSymbolFirst]
+                }
+
+                // get remaining production body
+                productionBody = productionBody.substring(responce.offset, productionBody.length);
+            }
+        }
+
+    } while (productionBody.length != 0)
+
     return []
 
 }
@@ -1535,6 +1596,6 @@ function computeAutomaLR0NewRow(grammarTerminalAndNotTerminalsArray: string[], t
  */
 export function getArrayItemsAsStringWithNewLinesInsteadOfCommas(array: string[]) {
 
-    return array.toString().replaceAll(',',"\n");
+    return array.toString().replaceAll(',', "\n");
 
 }
