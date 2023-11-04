@@ -1,6 +1,6 @@
 'use client'
 
-import { parseInput, first, follow, test, parsingTable, nonRecursivePredictiveParsing, reverseArray, automaLR0, getArrayItemsAsStringWithNewLinesInsteadOfCommas } from "@/lib/utils"
+import { parseInput, first, follow, test, parsingTable, nonRecursivePredictiveParsing, reverseArray, automaLR0, getArrayItemsAsStringWithNewLinesInsteadOfCommas, parseInputGrammarWithSpecifiedTerminalsAndNotTerminals } from "@/lib/utils"
 import { useState } from "react"
 import styles from './page.module.css'
 import { Computed } from "@/types/Computed"
@@ -8,8 +8,14 @@ import { NonRecursivePredictiveParsingReturnType } from "@/types/NonRecursivePre
 
 export default function Home() {
 
+  const [toBeParsedInputGrammar, setToBeParsedInputGrammar] = useState('')
+
+  const [inputNonTerminalSymbols, setInputNonTerminalSymbols] = useState('')
+  const [inputTerminalSymbols, setInputTerminalSymbols] = useState('')
   const [inputGrammar, setInputGrammar] = useState('')
+
   const [inputString, setInputString] = useState('')
+
   const [computed, setComputed] = useState<Computed | null>(null)
 
   function compute() {
@@ -25,8 +31,14 @@ export default function Home() {
     }
 
     try {
-      if (inputGrammar.length != 0)
-        newComputed.grammar = parseInput(inputGrammar);
+      if (inputNonTerminalSymbols.length != 0 && inputTerminalSymbols.length != 0 && inputGrammar.length != 0) {
+        newComputed.grammar = parseInputGrammarWithSpecifiedTerminalsAndNotTerminals(inputNonTerminalSymbols, inputTerminalSymbols, inputGrammar)
+      } else if (toBeParsedInputGrammar.length != 0) {
+        newComputed.grammar = parseInput(toBeParsedInputGrammar);
+      } else {
+        console.log("No grammar in input")
+      }
+
     } catch (error) {
       console.log("Problem is grammar parsing")
       console.error(error)
@@ -93,7 +105,83 @@ export default function Home() {
       </div>
 
 
-      <textarea placeholder="InputGrammar" onChange={e => setInputGrammar(e.target.value)} />
+      <div className={styles.grammarInputsWayDiv}>
+
+        {
+          inputTerminalSymbols.length == 0 && inputNonTerminalSymbols.length == 0 && inputGrammar.length == 0 &&
+          <div className={styles.inputContainer}>
+
+            <div className={styles.line}></div>
+
+            <div className={styles.parseGrammarDiv}>
+              <h1>Input method 1:</h1>
+              <textarea
+                placeholder="InputGrammar"
+                className={styles.textAreaClass}
+                onChange={e => setToBeParsedInputGrammar(e.target.value)}
+                value={toBeParsedInputGrammar}
+              />
+            </div>
+          </div>
+        }
+
+        {
+          toBeParsedInputGrammar.length == 0 &&
+
+          <div className={styles.inputContainer}>
+
+            <div className={styles.line}></div>
+
+            <div>
+              <h1>Input method 2:</h1>
+              <div className={styles.inputGrammarDiv}>
+
+                <div className={styles.inputGrammarInnerDiv}>
+
+                  <fieldset className={styles.fieldSetClass}>
+                    <legend>Simboli non terminali</legend>
+                    <span>{"Inserisci i simboli non terminali separati da ','"}</span>
+                    <span>{"Ad esempio: A,E,C,A',F"}</span>
+                    <input
+                      placeholder="A,E,C,A',F"
+                      type="text"
+                      onChange={e => setInputNonTerminalSymbols(e.target.value.toUpperCase())}
+                      value={inputNonTerminalSymbols}
+                    />
+                  </fieldset>
+
+                  <fieldset className={styles.fieldSetClass}>
+                    <legend>Simboli terminali</legend>
+                    <span>{"Inserisci i simboli terminali separati da ','"}</span>
+                    <span>{"Ad esempio: a,b,f,d"}</span>
+                    <span>{"ATTENZIONE: il simbolo 'e' è riservato per la epsilon"}</span>
+                    <input
+                      placeholder="a,b,f,d"
+                      type="text"
+                      onChange={e => setInputTerminalSymbols(e.target.value.toLowerCase())}
+                      value={inputTerminalSymbols}
+                    />
+                  </fieldset>
+
+                </div>
+
+                <textarea
+                  placeholder="InputGrammar"
+                  className={styles.textAreaClass}
+                  onChange={e => setInputGrammar(e.target.value)}
+                  value={inputGrammar}
+                />
+
+              </div>
+            </div>
+          </div>
+
+        }
+
+        <div className={styles.line}></div>
+
+      </div>
+
       <input placeholder="Input string" type="text" onChange={e => setInputString(e.target.value)} />
 
       <button onClick={compute}>Compute</button>

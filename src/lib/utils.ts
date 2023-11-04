@@ -286,8 +286,73 @@ export function parseInput(input: string) {
         terminalLength++;
     } while (possibleTerminalsArray.length != 0)
 
-    // console.log("newGrammar", newGrammar)
+    // console.log("newParsedGrammar", newGrammar)
     return newGrammar;
+}
+
+/**
+ * used to parse grammar when
+ * terminal symbols and non terminal symbols are
+ * specified by the user
+ * @param input 
+ * @returns 
+ */
+export function parseInputGrammarWithSpecifiedTerminalsAndNotTerminals(inputNonTerminals: string, inputTerminals: string, inputGrammar: string) {
+
+
+    // create grammar object
+    let newGrammar: Grammar = {
+        initialSymbol: '',
+        nonTerminalSymbols: [],
+        terminalSymbols: [],
+        productions: {}
+    }
+
+    // get all nonTerminalsSymbol
+    newGrammar.nonTerminalSymbols = removeDuplicates(inputNonTerminals.split(','));
+
+    // get all terminalSymbols
+    newGrammar.terminalSymbols = removeDuplicates(inputTerminals.split(','));
+
+    // remove spaces from text
+    let parsedInput = inputGrammar.replace(/ /g, '');
+
+    // split productions
+    let productionsArray = parsedInput.split('\n')
+
+    if (productionsArray.length == 0)
+        return newGrammar;
+
+    // console.log("productionsArray", [...productionsArray])
+
+    /** get initial symbol */
+    newGrammar.initialSymbol = productionsArray[0].substring(0, productionsArray[0].indexOf('='));
+
+    // console.log("newGrammar", JSON.parse(JSON.stringify(newGrammar)))
+
+    /** get productions */
+    productionsArray.forEach(production => {
+
+        // get production head
+        let productionHead = production.substring(0, production.indexOf('='));
+
+        // get production body
+        let productionBody = production.substring(production.indexOf('>') + 1);
+
+        // handles the |
+        let productionBodyArray = productionBody.split('|');
+
+        productionBodyArray.forEach(currentProductionBody => {
+            addStringArrayElementsInObjectAttribute(newGrammar.productions, productionHead, [currentProductionBody])
+        });
+
+
+    });
+
+    // console.log("newGrammar", JSON.parse(JSON.stringify(newGrammar)))
+
+    return newGrammar;
+
 }
 
 /**

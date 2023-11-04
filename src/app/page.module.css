@@ -7,13 +7,25 @@
     gap: 2rem;
 }
 
-.outerDiv > textarea {
+.inputContainer {
+    width: 100%;
+}
+
+.grammarInputsWayDiv {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
+}
+
+.textAreaClass {
     width: 20rem;
     height: 15rem;
     font-size: 1.2rem;
 }
 
-.outerDiv > button {
+.outerDiv>button {
     padding: 0.8rem 2rem 0.8rem 2rem;
 }
 
@@ -23,14 +35,43 @@
     gap: 3rem;
 }
 
-.explainationDiv{
+.explainationDiv {
     display: flex;
     flex-direction: column;
 }
 
-.exampleGrammarDiv{
+.exampleGrammarDiv {
     display: flex;
     flex-direction: column;
     margin-left: 40%;
     margin-bottom: 2rem;
+}
+
+.fieldSetClass {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.parseGrammarDiv,
+.inputGrammarDiv,
+.inputGrammarInnerDiv {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+
+}
+
+.inputGrammarDiv {
+    align-items: center;
+}
+
+.parseGrammarDiv,
+.inputGrammarInnerDiv {
+    flex-direction: column;
+}
+
+.line {
+    border-top: 0.11rem solid black;
+    width: 100%;
 }
