@@ -299,10 +299,14 @@ export function first(inputGrammar: Grammar) {
     let first: Record<string, string[]> = {};
     let linkedFirstEntries: Record<string, string[]> = {} // used to store the linked first entries
     let pendingProductionBody: Record<string, string[]> = {}; // used to store productionBody that have the first symbol equals to productionHead (e.g. E=>E+A)
+    let addEpsilonToThisNonTerminaSymbolFirst: string[] = []; // used to store nonTerminal symbol where epsilon is to be added
 
     for (const nonTerminalSymbol in inputGrammar.productions) {
+
+        // console.log("nonTerminalSymbol", nonTerminalSymbol);
+
         // call function on nonTerminalSymbol
-        first[nonTerminalSymbol] = computeFirstEntry(inputGrammar, linkedFirstEntries, pendingProductionBody, nonTerminalSymbol);
+        first[nonTerminalSymbol] = computeFirstEntry(inputGrammar, linkedFirstEntries, pendingProductionBody, addEpsilonToThisNonTerminaSymbolFirst, nonTerminalSymbol);
     }
 
     // console.log("first first()", JSON.parse(JSON.stringify(first)));
@@ -320,16 +324,19 @@ export function first(inputGrammar: Grammar) {
     putEntriesInsideEntries(inputGrammar, linkedFirstEntries, first, true);
 
     // console.log("first", JSON.parse(JSON.stringify(first)), "\npendingProductionBody", JSON.parse(JSON.stringify(pendingProductionBody)))
-    /** finally handles productions bodies where its first symbol equals the productionHead (e.g. E=>E+Ab) */
+    /** finally handles productions bodies where its first symbol equals the productionHead (e.g. E=>E+Ab) or productions that now have epsilon in their first() because it was added with the putEntriesInsideEntries() function */
     // iterate over the productionHeads
     for (const productionHead in pendingProductionBody) {
+
+        // console.log("productionHead", productionHead);
 
         // iterate over each body
         pendingProductionBody[productionHead].forEach(productionBody => {
 
             // console.log("_productionBody", productionBody);
             // add the new elements to the first()
-            first[productionHead] = [...first[productionHead], ...handleFirstTerminalSymbolInsideBody(inputGrammar, linkedFirstEntries, null, first, productionHead, productionBody)]
+            first[productionHead] = [...first[productionHead], ...handleFirstTerminalSymbolInsideBody(inputGrammar, linkedFirstEntries, null, addEpsilonToThisNonTerminaSymbolFirst, first, productionHead, productionBody)]
+            first[productionHead] = removeDuplicates(first[productionHead]);
         });
 
     }
@@ -337,6 +344,13 @@ export function first(inputGrammar: Grammar) {
 
     /** put First() inside First() again because we may have updated something*/
     putEntriesInsideEntries(inputGrammar, linkedFirstEntries, first, true);
+
+    /** add epsilon to productions */
+    // console.log("addEpsilonToThisNonTerminaSymbolFirst", [...addEpsilonToThisNonTerminaSymbolFirst])
+    addEpsilonToThisNonTerminaSymbolFirst.forEach(nonTerminalSymbol => {
+        if (!first[nonTerminalSymbol].includes(epsilon))
+            first[nonTerminalSymbol].push(epsilon)
+    });
 
     // console.log("_first", JSON.parse(JSON.stringify(first)))
 
@@ -350,7 +364,7 @@ export function first(inputGrammar: Grammar) {
  * @param nonTerminalSymbol 
  * @returns 
  */
-function computeFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<string, string[]>, pendingProductionBody: Record<string, string[]>, nonTerminalSymbol: string) {
+function computeFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<string, string[]>, pendingProductionBody: Record<string, string[]>, addEpsilonToThisNonTerminaSymbolFirst: string[], nonTerminalSymbol: string) {
 
     let firstRoughArray: string[] = [];
 
@@ -358,9 +372,9 @@ function computeFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<str
     inputGrammar.productions[nonTerminalSymbol].forEach(productionBody => {
         //check first symbol
         let responce = recognizeSymbol(inputGrammar, productionBody);
-        // console.log("productionBody", productionBody)
+        // console.log("_productionBody", productionBody)
         // call the first() function of head with current productionBody
-        firstRoughArray = [...firstRoughArray, ...getFirstEntry(inputGrammar, linkedFirstEntries, pendingProductionBody, nonTerminalSymbol, productionBody, responce)];
+        firstRoughArray = [...firstRoughArray, ...getFirstEntry(inputGrammar, linkedFirstEntries, pendingProductionBody, addEpsilonToThisNonTerminaSymbolFirst, nonTerminalSymbol, productionBody, responce)];
 
     });
 
@@ -377,7 +391,7 @@ function computeFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<str
  * @param productionBody 
  * @returns 
  */
-function getFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<string, string[]>, pendingProductionBody: Record<string, string[]>, productionHead: string, productionBody: string, responce: RecognizeSymbolReturnType) {
+function getFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<string, string[]>, pendingProductionBody: Record<string, string[]>, addEpsilonToThisNonTerminaSymbolFirst: string[], productionHead: string, productionBody: string, responce: RecognizeSymbolReturnType) {
 
     // console.log("productionBody", productionBody)
 
@@ -400,7 +414,7 @@ function getFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<string,
 
     /** handles X=>Y1...YN (point 2 of the algorithm) */
     if (responce.checkSymbolGivenGrammarReturnType.isNonTerminalSymbol) { // considered set of symbols is a nonTerminalSymbol
-        return handleFirstTerminalSymbolInsideBody(inputGrammar, linkedFirstEntries, pendingProductionBody, null, productionHead, productionBody)
+        return handleFirstTerminalSymbolInsideBody(inputGrammar, linkedFirstEntries, pendingProductionBody, addEpsilonToThisNonTerminaSymbolFirst, null, productionHead, productionBody)
     }
 
     // responce.isError
@@ -420,7 +434,7 @@ function getFirstEntry(inputGrammar: Grammar, linkedFirstEntries: Record<string,
  * @param productionBody 
  * @returns 
  */
-function handleFirstTerminalSymbolInsideBody(inputGrammar: Grammar, linkedFirstEntries: Record<string, string[]>, pendingProductionBody: Record<string, string[]> | null = null, first: Record<string, string[]> | null = null, productionHead: string, productionBody: string) {
+function handleFirstTerminalSymbolInsideBody(inputGrammar: Grammar, linkedFirstEntries: Record<string, string[]>, pendingProductionBody: Record<string, string[]> | null = null, addEpsilonToThisNonTerminaSymbolFirst: string[], first: Record<string, string[]> | null = null, productionHead: string, productionBody: string) {
 
     /** iterates until there is a terminal symbol or there is a nonTerminalSymbol that does not have epsilon in its first() */
     do {
@@ -448,7 +462,32 @@ function handleFirstTerminalSymbolInsideBody(inputGrammar: Grammar, linkedFirstE
                 // get recognized nonTerminal symbol first()
                 let nonTerminalSymbolFirst: string[] = [];
                 if (first == null && pendingProductionBody != null) {
-                    nonTerminalSymbolFirst = computeFirstEntry(inputGrammar, linkedFirstEntries, pendingProductionBody, recognizedSymbol);
+                    nonTerminalSymbolFirst = computeFirstEntry(inputGrammar, linkedFirstEntries, pendingProductionBody, addEpsilonToThisNonTerminaSymbolFirst, recognizedSymbol);
+
+                    // there could be something like S=>Aa A=>A'|b A'=>c|e, at this stage
+                    // first(A) won't have epsilon, so we have to pend it
+                    // in order to check later
+                    // console.log("sender", recognizedSymbol, "receiver", productionHead)
+                    addStringArrayElementsInObjectAttribute(pendingProductionBody, productionHead, [productionBody])
+
+                    /** handles cases like E=>A' A'=>e */
+                    // get new production body
+                    let newProductionBody = productionBody.substring(responce.offset, productionBody.length);
+
+                    // recognize symbol next to the recognizedSymbol
+                    let responceNextSymbol = recognizeSymbol(inputGrammar, newProductionBody);
+
+                    // get symbol next to the recognizedSymbol
+                    let recognizedSymbolNextToRecognizedSymbol = newProductionBody.substring(0, responceNextSymbol.offset);
+
+                    // console.log("recognizedSymbolNextToRecognizedSymbol", recognizedSymbolNextToRecognizedSymbol)
+
+                    if (recognizedSymbolNextToRecognizedSymbol.length == 0) {
+                        // if symbol is empty string than first(productionHead) must have epsilon
+                        // console.log(`${productionHead} must have epsilon`)
+                        if (!addEpsilonToThisNonTerminaSymbolFirst.includes(productionHead))
+                            addEpsilonToThisNonTerminaSymbolFirst.push(productionHead);
+                    }
                 } else if (first != null) {
                     nonTerminalSymbolFirst = [...first[recognizedSymbol]]
                 }
